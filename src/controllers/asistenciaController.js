@@ -172,6 +172,15 @@ exports.crearRegistro = async (req, res) => {
   }
 };
 
+exports.getAllRegistros = async (req, res) => {
+  try {
+    const registros = await RegistroModel.getAll();
+    res.json({ success: true, data: registros });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 exports.login = async (req, res) => {
   try {
     const { usuario, clave } = req.body;

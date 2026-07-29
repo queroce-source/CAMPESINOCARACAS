@@ -112,6 +112,17 @@ class RegistroModel {
     return Object.values(hourMap);
   }
 
+  static async getAll() {
+    const snap = await db.collection(REGISTROS).get();
+    const registros = [];
+    snap.forEach(doc => {
+      const data = doc.data();
+      data.id = doc.id;
+      registros.push(data);
+    });
+    return registros;
+  }
+
   static async _getRegistrosPorRango(fechaInicio, fechaFin) {
     const startDate = `${fechaInicio} 00:00:00`;
     const endDate = `${fechaFin} 23:59:59`;

@@ -9,6 +9,7 @@ router.get('/vendedores', asistenciaController.getVendedores);
 router.get('/registros/dashboard', asistenciaController.getDashboard);
 router.get('/registros/detalle', asistenciaController.getDetalle);
 router.get('/registros/graficos', asistenciaController.getGraficos);
+router.get('/registros/all', asistenciaController.getAllRegistros);
 router.post('/registros', asistenciaController.crearRegistro);
 
 module.exports = router;
