@@ -1,6 +1,7 @@
 class SimpleCache {
   constructor() {
     this._store = new Map();
+    this._pending = new Map();
   }
 
   async get(key, ttlMs, fetcher) {
@@ -9,17 +10,32 @@ class SimpleCache {
     if (entry && now - entry.ts < ttlMs) {
       return entry.value;
     }
-    const value = await fetcher();
-    this._store.set(key, { ts: now, value });
-    return value;
+
+    if (this._pending.has(key)) {
+      return this._pending.get(key);
+    }
+
+    const promise = fetcher().then(value => {
+      this._store.set(key, { ts: now, value });
+      this._pending.delete(key);
+      return value;
+    }).catch(err => {
+      this._pending.delete(key);
+      throw err;
+    });
+
+    this._pending.set(key, promise);
+    return promise;
   }
 
   invalidate(key) {
     this._store.delete(key);
+    this._pending.delete(key);
   }
 
   clear() {
     this._store.clear();
+    this._pending.clear();
   }
 }
 

@@ -572,6 +572,7 @@
       if (!jsonV.success || !jsonR.success) throw new Error('Error del servidor');
       allVendedores = jsonV.data;
       allRegistros = jsonR.data;
+      poblarSupervisores(allVendedores);
       console.log('[DEBUG] Vendedores:', allVendedores.length, '| Registros totales:', allRegistros.length);
       guardarCache({ vendedores: allVendedores, registros: allRegistros });
       renderDesdeCache();
@@ -714,15 +715,11 @@
       if (cache && cache.vendedores && cache.vendedores.length > 0) {
         allVendedores = cache.vendedores;
         allRegistros = cache.registros || [];
-        console.log('[DEBUG] Cache local — vendedores:', allVendedores.length, 'registros:', allRegistros.length, '(sin fetch al servidor)');
+        console.log('[DEBUG] Cache local — vendedores:', allVendedores.length, 'registros:', allRegistros.length, '(sin fetch)');
         poblarSupervisores(allVendedores);
         renderDesdeCache();
       } else {
-        fetch('/api/vendedores')
-          .then(r => r.json())
-          .then(j => { if (j.success) poblarSupervisores(j.data); })
-          .catch(() => {})
-          .finally(() => fetchAllData());
+        fetchAllData();
       }
     } else {
       document.getElementById('vistaLogin').style.display = 'flex';
