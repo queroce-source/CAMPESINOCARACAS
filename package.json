@@ -4,9 +4,9 @@
   "description": "Control de Asistencia y Registro de Campo para Vendedores",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "seed": "node src/config/seed.js",
-    "dev": "node --watch server.js"
+    "start": "node --env-file .env server.js",
+    "seed": "node --env-file .env src/config/seed.js",
+    "dev": "node --env-file .env --watch server.js"
   },
   "dependencies": {
     "express": "^4.18.2",

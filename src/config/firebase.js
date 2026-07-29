@@ -1,15 +1,16 @@
 const admin = require('firebase-admin');
+const { getFirestore } = require('firebase-admin/firestore');
 
 if (!admin.apps || !admin.apps.length) {
   const envJson = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (envJson) {
-    admin.initializeApp({ credential: admin.credential.cert(JSON.parse(envJson)) });
+    admin.initializeApp({ credential: admin.cert(JSON.parse(envJson)) });
   } else {
-    console.error('FIREBASE_SERVICE_ACCOUNT no configurado. Debes configurar esta variable con el JSON de la service account de Firebase.');
+    console.error('FIREBASE_SERVICE_ACCOUNT no configurado.');
     process.exit(1);
   }
 }
 
-const db = admin.firestore();
+const db = getFirestore();
 
 module.exports = { db };
