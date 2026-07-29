@@ -1,0 +1,6 @@
+node_modules/
+.env
+asistencia.db
+uploads/*
+!uploads/.gitkeep
+*.log

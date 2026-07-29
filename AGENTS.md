@@ -27,6 +27,24 @@ Sistema "Control de Asistencia y Registro de Campo para Vendedores" — Node.js 
 | GET | `/api/registros/graficos?fecha=YYYY-MM-DD` | Datos para Chart.js (barras + timeline) |
 | POST | `/api/registros` | Crear registro + foto (Base64 → archivo en `uploads/`) |
 
+## Turso (base de datos edge)
+
+En lugar de `sqlite3`, se usa `@libsql/client` que soporta tanto local (`file:asistencia.db`) como remoto (Turso edge). La conexión se configura con variables de entorno:
+
+```
+TURSO_DB_URL=libsql://...   # remoto
+TURSO_DB_TOKEN=eyJ...       # solo remoto
+```
+
+Sin variables de entorno → usa `file:asistencia.db` local. Las consultas usan `await db.execute({ sql, args })` en vez de callbacks.
+
+## Deploy (Vercel)
+
+- Entrypoint serverless: `api/index.js` (importa `app.js`)
+- `app.js` exporta la app Express sin `app.listen()`
+- `server.js` solo para desarrollo local
+- Config de rutas en `vercel.json`
+
 ## Consultas optimizadas (Fase 1)
 
 - Dashboard y detalle usan **LEFT JOIN doble** en una sola consulta en vez de bucles JS
@@ -43,4 +61,4 @@ Sistema "Control de Asistencia y Registro de Campo para Vendedores" — Node.js 
 
 - Sin TypeScript ni frameworks frontend
 - Textos y comentarios en español
-- `_redirects.HTML` es para Cloudflare Pages, no afecta al servidor local
+- Despliegue en Vercel (`vercel.json` + `api/index.js`)

@@ -1,41 +1,26 @@
-const db = require('../config/database');
+const { db } = require('../config/database');
 
 class VendedorModel {
-  static getAll() {
-    return new Promise((resolve, reject) => {
-      db.all('SELECT codigo, nombre, supervisor FROM vendedores ORDER BY nombre', [], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
+  static async getAll() {
+    const result = await db.execute('SELECT codigo, nombre, supervisor FROM vendedores ORDER BY nombre');
+    return result.rows;
   }
 
-  static search(term) {
-    return new Promise((resolve, reject) => {
-      db.all(
-        `SELECT codigo, nombre, supervisor FROM vendedores
-         WHERE codigo LIKE ? OR nombre LIKE ?
-         ORDER BY nombre LIMIT 20`,
-        [`%${term}%`, `%${term}%`],
-        (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows);
-        }
-      );
+  static async search(term) {
+    const result = await db.execute({
+      sql: `SELECT codigo, nombre, supervisor FROM vendedores
+            WHERE codigo LIKE ? OR nombre LIKE ? ORDER BY nombre LIMIT 20`,
+      args: [`%${term}%`, `%${term}%`],
     });
+    return result.rows;
   }
 
-  static getBySupervisor(supervisor) {
-    return new Promise((resolve, reject) => {
-      db.all(
-        'SELECT codigo, nombre, supervisor FROM vendedores WHERE supervisor = ? ORDER BY nombre',
-        [supervisor],
-        (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows);
-        }
-      );
+  static async getBySupervisor(supervisor) {
+    const result = await db.execute({
+      sql: 'SELECT codigo, nombre, supervisor FROM vendedores WHERE supervisor = ? ORDER BY nombre',
+      args: [supervisor],
     });
+    return result.rows;
   }
 }
 

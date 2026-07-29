@@ -1,17 +1,12 @@
-const db = require('../config/database');
+const { db } = require('../config/database');
 
 class UsuarioModel {
-  static findByUsuario(usuario) {
-    return new Promise((resolve, reject) => {
-      db.get(
-        'SELECT id, usuario, clave, rol, supervisorAsignado FROM usuarios WHERE usuario = ?',
-        [usuario],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row || null);
-        }
-      );
+  static async findByUsuario(usuario) {
+    const result = await db.execute({
+      sql: 'SELECT id, usuario, clave, rol, supervisorAsignado FROM usuarios WHERE usuario = ?',
+      args: [usuario],
     });
+    return result.rows[0] || null;
   }
 }
 
