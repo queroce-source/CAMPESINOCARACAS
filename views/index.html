@@ -25,6 +25,7 @@
     .msg-gps { color: var(--rojo); font-size: 12px; font-weight: bold; text-align: center; margin-top: 10px; }
     .camara-container { width: 100%; border: 2px dashed var(--borde-input); border-radius: 8px; overflow: hidden; background: #f8fafc; text-align: center; }
     .camara-container .placeholder { padding: 30px 10px; color: #94a3b8; font-size: 14px; }
+    .camara-container video { width: 100%; display: block; border-radius: 6px; }
     .btn-foto { width: 100%; background: var(--azul-marino); color: white; border: none; padding: 10px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 6px; transition: 0.2s; }
     .btn-foto:hover { background: #1e2d3a; }
     .btn-foto:disabled { background: #94a3b8; cursor: not-allowed; }
@@ -61,13 +62,16 @@
     <div class="form-group">
       <label>Foto obligatoria:</label>
       <div class="camara-container" id="camaraContainer">
-        <div class="placeholder" id="camaraPlaceholder">Presiona "Tomar Foto" para capturar</div>
+        <div class="placeholder" id="camaraPlaceholder">Iniciando cámara...</div>
+        <video id="camaraVideo" autoplay playsinline style="display:none;"></video>
         <canvas id="camaraCanvas" style="display:none;"></canvas>
         <img id="fotoPreview" class="foto-preview" alt="Vista previa">
         <div id="indicadorCamara" style="font-size:12px;color:#64748b;padding:4px 0;">📷 Cámara Trasera</div>
       </div>
-      <button type="button" id="btnTomarFoto" class="btn-foto">📸 Tomar Foto</button>
-      <button type="button" id="btnCambiarCamara" class="btn-foto" style="background:#64748b;">🔄 Cambiar Cámara</button>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <button type="button" id="btnTomarFoto" class="btn-foto" style="flex:1;">📸 Tomar Foto</button>
+        <button type="button" id="btnCambiarCamara" class="btn-foto" style="flex:1;background:#64748b;">🔄 Cambiar</button>
+      </div>
     </div>
     <div id="msgGps" class="msg-gps">Obteniendo ubicación GPS...</div>
     <button type="submit" id="btnEnviar" class="btn-submit" disabled>Enviar Registro</button>
@@ -79,6 +83,7 @@
   let latitudUsuario = null;
   let longitudUsuario = null;
   let fotoBase64Capturada = null;
+  let camaraStream = null;
   let facingMode = 'environment';
 
   function formatearFechaDispositivo() {
@@ -131,66 +136,67 @@
     }
   }
 
-  function actualizarIndicadorCamara() {
-    document.getElementById('indicadorCamara').innerText =
-      facingMode === 'environment' ? '📷 Cámara Trasera' : '📷 Cámara Frontal';
-  }
-
-  function tomarFoto() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert("Tu navegador no soporta acceso a la cámara.");
-      return;
-    }
-    const btnTomar = document.getElementById('btnTomarFoto');
-    btnTomar.disabled = true;
-    btnTomar.innerText = '⏳ Abriendo cámara...';
-
+  function iniciarCamara() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    const video = document.getElementById('camaraVideo');
+    const placeholder = document.getElementById('camaraPlaceholder');
     navigator.mediaDevices.getUserMedia({
       video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: false
     }).then(stream => {
-      const canvas = document.getElementById('camaraCanvas');
-      const video = document.createElement('video');
+      camaraStream = stream;
       video.srcObject = stream;
-      video.setAttribute('playsinline', '');
-      video.onloadedmetadata = () => {
-        video.play();
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        if (facingMode === 'user') {
-          ctx.translate(canvas.width, 0);
-          ctx.scale(-1, 1);
-        }
-        ctx.drawImage(video, 0, 0);
-        stream.getTracks().forEach(t => t.stop());
-        fotoBase64Capturada = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-        const preview = document.getElementById('fotoPreview');
-        preview.src = `data:image/jpeg;base64,${fotoBase64Capturada}`;
-        preview.style.display = 'block';
-        document.getElementById('camaraPlaceholder').style.display = 'none';
-        btnTomar.disabled = false;
-        btnTomar.innerText = '📸 Tomar Foto';
-        const btnEnviar = document.getElementById('btnEnviar');
-        if (latitudUsuario) btnEnviar.disabled = false;
-      };
-    }).catch(err => {
-      alert("No se pudo acceder a la cámara. Verifica los permisos.");
-      btnTomar.disabled = false;
-      btnTomar.innerText = '📸 Tomar Foto';
+      video.style.display = 'block';
+      placeholder.innerText = 'video en vivo';
+    }).catch(() => {
+      placeholder.innerText = 'No se pudo acceder a la cámara';
     });
   }
 
-  function alternarCamara() {
-    facingMode = (facingMode === 'environment') ? 'user' : 'environment';
-    actualizarIndicadorCamara();
+  function detenerCamara() {
+    if (camaraStream) {
+      camaraStream.getTracks().forEach(t => t.stop());
+      camaraStream = null;
+    }
+    document.getElementById('camaraVideo').style.display = 'none';
+  }
+
+  function tomarFoto() {
+    const video = document.getElementById('camaraVideo');
+    if (!video.srcObject) {
+      alert("La cámara aún no está lista. Espera un momento.");
+      return;
+    }
+    const canvas = document.getElementById('camaraCanvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (facingMode === 'user') {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(video, 0, 0);
+    fotoBase64Capturada = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
     const preview = document.getElementById('fotoPreview');
-    if (preview.style.display === 'block' && fotoBase64Capturada) {
-      preview.style.display = 'none';
+    preview.src = `data:image/jpeg;base64,${fotoBase64Capturada}`;
+    preview.style.display = 'block';
+    document.getElementById('camaraPlaceholder').style.display = 'none';
+    const btnEnviar = document.getElementById('btnEnviar');
+    if (latitudUsuario) btnEnviar.disabled = false;
+  }
+
+  function alternarCamara() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    facingMode = (facingMode === 'environment') ? 'user' : 'environment';
+    document.getElementById('indicadorCamara').innerText =
+      facingMode === 'environment' ? '📷 Cámara Trasera' : '📷 Cámara Frontal';
+    if (fotoBase64Capturada) {
       fotoBase64Capturada = null;
-      document.getElementById('camaraPlaceholder').style.display = 'block';
+      document.getElementById('fotoPreview').style.display = 'none';
       document.getElementById('btnEnviar').disabled = true;
     }
+    detenerCamara();
+    iniciarCamara();
   }
 
   const inputBuscar = document.getElementById('buscarVendedor');
@@ -254,6 +260,7 @@
       return;
     }
 
+    detenerCamara();
     btnEnviar.disabled = true;
     btnEnviar.innerText = "Enviando registro...";
 
@@ -293,6 +300,7 @@
     definirTipoRegistro();
     obtenerUbicacion();
     cargarVendedores();
+    setTimeout(iniciarCamara, 500);
   };
 </script>
 </body>
