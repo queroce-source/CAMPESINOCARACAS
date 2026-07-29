@@ -274,8 +274,8 @@
     const hoy = new Date();
     const anio = hoy.getFullYear();
     const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-    const ultimo = new Date(anio, hoy.getMonth() + 1, 0).getDate();
-    return { inicio: `${anio}-${mes}-01`, fin: `${anio}-${mes}-${String(ultimo).padStart(2, '0')}` };
+    const dia = String(hoy.getDate()).padStart(2, '0');
+    return { inicio: `${anio}-${mes}-${dia}`, fin: `${anio}-${mes}-${dia}` };
   }
 
   /* --- Filtrado client-side (AND lógico) --- */
@@ -363,20 +363,21 @@
     return 'pct-bajo';
   }
 
-  function generarHtmlEstado(reg) {
+  function generarHtmlEstado(reg, nombreVendedor) {
     if (!reg) return '<span class="badge-pend">PENDIENTE</span>';
+    const nombre = nombreVendedor || '';
     const hora = formatearHora(reg.fecha);
     let html = `<div><span class="badge-reg">✓ REGISTRADO</span> <span class="hora">🕒 ${hora}</span></div>`;
     html += '<div class="actions">';
     if (reg.foto) {
-      html += `<button onclick="verFoto('${reg.nombre || ''}', '${reg.foto}')" class="btn-act btn-foto">📸 Foto</button>`;
+      html += `<button onclick="verFoto('${nombre}', '${reg.foto}')" class="btn-act btn-foto">📸 Foto</button>`;
     }
     if (reg.latitud && reg.longitud) {
-      html += `<button onclick="verMapa('${reg.nombre || ''}', '${reg.latitud}', '${reg.longitud}')" class="btn-act btn-mapa">📍 Mapa</button>`;
+      html += `<button onclick="verMapa('${nombre}', '${reg.latitud}', '${reg.longitud}')" class="btn-act btn-mapa">📍 Mapa</button>`;
     }
     if (reg.comentario && reg.comentario.trim() !== "") {
       const comLimpio = reg.comentario.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-      html += `<button onclick="verComentario('${reg.nombre || ''}', '${comLimpio}')" class="btn-act btn-obs">💬 Obs</button>`;
+      html += `<button onclick="verComentario('${nombre}', '${comLimpio}')" class="btn-act btn-obs">💬 Obs</button>`;
     }
     html += '</div>';
     return html;
@@ -407,8 +408,8 @@
         <td><strong>${r.codigo}</strong></td>
         <td>${r.nombre}</td>
         <td>${r.supervisor || '-'}</td>
-        <td>${generarHtmlEstado(r.entrada)}</td>
-        <td>${generarHtmlEstado(r.salida)}</td>
+        <td>${generarHtmlEstado(r.entrada, r.nombre)}</td>
+        <td>${generarHtmlEstado(r.salida, r.nombre)}</td>
         <td><span class="badge-pct ${obtenerClaseBadgePct(pct)}">${pct}%</span></td>
       `;
       tbody.appendChild(tr);
@@ -643,6 +644,9 @@
       document.getElementById('userInfo').innerText = `Usuario: ${usuarioActual.usuario} | Rol: ${usuarioActual.rol} | Asignación: ${usuarioActual.supervisorAsignado || 'TODOS'}`;
       poblarDiasDelMes();
       poblarAnos();
+      const hoy = new Date();
+      document.getElementById('filterMes').value = hoy.getMonth().toString();
+      document.getElementById('filterDia').value = hoy.getDate().toString();
       bindFilterEvents();
       fetch('/api/vendedores')
         .then(r => r.json())
