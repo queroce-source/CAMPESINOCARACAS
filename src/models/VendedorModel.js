@@ -1,26 +1,26 @@
-const { db } = require('../config/database');
+const { db } = require('../config/firebase');
+
+const COLLECTION = 'vendedores';
 
 class VendedorModel {
   static async getAll() {
-    const result = await db.execute('SELECT codigo, nombre, supervisor FROM vendedores ORDER BY nombre');
-    return result.rows;
+    const snap = await db.collection(COLLECTION).get();
+    const vendedores = [];
+    snap.forEach(doc => vendedores.push({ id: doc.id, ...doc.data() }));
+    return vendedores;
   }
 
-  static async search(term) {
-    const result = await db.execute({
-      sql: `SELECT codigo, nombre, supervisor FROM vendedores
-            WHERE codigo LIKE ? OR nombre LIKE ? ORDER BY nombre LIMIT 20`,
-      args: [`%${term}%`, `%${term}%`],
+  static async search(q) {
+    const snap = await db.collection(COLLECTION).get();
+    const lower = q.toLowerCase();
+    const vendedores = [];
+    snap.forEach(doc => {
+      const v = doc.data();
+      if (v.codigo.toLowerCase().includes(lower) || v.nombre.toLowerCase().includes(lower)) {
+        vendedores.push({ id: doc.id, ...v });
+      }
     });
-    return result.rows;
-  }
-
-  static async getBySupervisor(supervisor) {
-    const result = await db.execute({
-      sql: 'SELECT codigo, nombre, supervisor FROM vendedores WHERE supervisor = ? ORDER BY nombre',
-      args: [supervisor],
-    });
-    return result.rows;
+    return vendedores;
   }
 }
 

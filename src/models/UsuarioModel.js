@@ -1,12 +1,12 @@
-const { db } = require('../config/database');
+const { db } = require('../config/firebase');
+
+const COLLECTION = 'usuarios';
 
 class UsuarioModel {
   static async findByUsuario(usuario) {
-    const result = await db.execute({
-      sql: 'SELECT id, usuario, clave, rol, supervisorAsignado FROM usuarios WHERE usuario = ?',
-      args: [usuario],
-    });
-    return result.rows[0] || null;
+    const doc = await db.collection(COLLECTION).doc(usuario).get();
+    if (!doc.exists) return null;
+    return { id: doc.id, ...doc.data() };
   }
 }
 

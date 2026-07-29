@@ -1,15 +1,14 @@
-const { db, initDB } = require('./database');
+require('./firebase');
+const { db } = require('./firebase');
 
-async function seed() {
-  await initDB();
-
-  const existing = await db.execute('SELECT COUNT(*) as count FROM vendedores');
-  if (existing.rows[0].count > 0) {
-    console.log('La base de datos ya tiene datos. Omitiendo seed.');
+async function seedDatabase() {
+  const vendedoresSnap = await db.collection('vendedores').limit(1).get();
+  if (!vendedoresSnap.empty) {
+    console.log('Firestore ya tiene datos. Omitiendo seed.');
     return;
   }
 
-  console.log('Insertando datos de prueba...');
+  console.log('Insertando datos de prueba en Firestore...');
 
   const vendedores = [
     ['001','JUAN PEREZ','MARIA LOPEZ'],
@@ -26,7 +25,9 @@ async function seed() {
     ['012','FELIPE ORTIZ','ANA PATIÑO'],
   ];
   for (const v of vendedores) {
-    await db.execute({ sql: 'INSERT OR IGNORE INTO vendedores (codigo, nombre, supervisor) VALUES (?, ?, ?)', args: v });
+    await db.collection('vendedores').doc(v[0]).set({
+      codigo: v[0], nombre: v[1], supervisor: v[2],
+    });
   }
 
   const usuarios = [
@@ -36,7 +37,9 @@ async function seed() {
     ['ANA PATIÑO', 'ana123', 'SUPERVISOR', 'ANA PATIÑO'],
   ];
   for (const u of usuarios) {
-    await db.execute({ sql: 'INSERT OR IGNORE INTO usuarios (usuario, clave, rol, supervisorAsignado) VALUES (?, ?, ?, ?)', args: u });
+    await db.collection('usuarios').doc(u[0]).set({
+      usuario: u[0], clave: u[1], rol: u[2], supervisorAsignado: u[3],
+    });
   }
 
   const hoy = new Date().toISOString().split('T')[0];
@@ -53,13 +56,14 @@ async function seed() {
     ['003','ANA MARTINEZ','SALIDA (Tarde)','Reporte entregado','4.717','-74.077',null,`${ayer} 17:30:00`],
   ];
   for (const r of registros) {
-    await db.execute({
-      sql: 'INSERT INTO registros (codigo, nombre, tipo, comentario, latitud, longitud, foto, fecha) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      args: r,
+    await db.collection('registros').add({
+      codigo: r[0], nombre: r[1], tipo: r[2],
+      comentario: r[3], latitud: r[4] ? Number(r[4]) : null,
+      longitud: r[5] ? Number(r[5]) : null, foto: r[6], fecha: r[7],
     });
   }
 
   console.log('Seed completado exitosamente.');
 }
 
-seed().catch(err => { console.error('Error en seed:', err); process.exit(1); });
+seedDatabase().catch(err => { console.error('Error en seed:', err); process.exit(1); });

@@ -1,93 +1,147 @@
-const { db } = require('../config/database');
+const { db } = require('../config/firebase');
+
+const VENDEDORES = 'vendedores';
+const REGISTROS = 'registros';
 
 class RegistroModel {
   static async crear({ codigo, nombre, tipo, comentario, latitud, longitud, foto }) {
     const fecha = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const result = await db.execute({
-      sql: `INSERT INTO registros (codigo, nombre, tipo, comentario, latitud, longitud, foto, fecha)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [codigo, nombre, tipo, comentario, latitud, longitud, foto, fecha],
+    const docRef = await db.collection(REGISTROS).add({
+      codigo, nombre, tipo, comentario,
+      latitud: latitud || null,
+      longitud: longitud || null,
+      foto, fecha,
     });
-    return { id: Number(result.lastInsertRowid) };
+    return { id: docRef.id };
   }
 
   static async getDashboard(fecha, supervisor) {
-    const result = await db.execute({
-      sql: `
-        SELECT v.supervisor,
-               COUNT(*) as total_vendedores,
-               SUM(CASE WHEN r_ent.id IS NOT NULL THEN 1 ELSE 0 END) as entradas_reg,
-               SUM(CASE WHEN r_sal.id IS NOT NULL THEN 1 ELSE 0 END) as salidas_reg
-        FROM vendedores v
-        LEFT JOIN registros r_ent ON r_ent.codigo = v.codigo
-          AND r_ent.tipo LIKE '%ENTRADA%'
-          AND DATE(r_ent.fecha) = ?
-        LEFT JOIN registros r_sal ON r_sal.codigo = v.codigo
-          AND r_sal.tipo LIKE '%SALIDA%'
-          AND DATE(r_sal.fecha) = ?
-        WHERE (? = 'TODOS' OR v.supervisor = ?)
-        GROUP BY v.supervisor
-        ORDER BY v.supervisor
-      `,
-      args: [fecha, fecha, supervisor, supervisor],
+    let vendedoresQuery = db.collection(VENDEDORES);
+    if (supervisor !== 'TODOS') {
+      vendedoresQuery = vendedoresQuery.where('supervisor', '==', supervisor);
+    }
+    const vendedoresSnap = await vendedoresQuery.get();
+    const vendedores = [];
+    vendedoresSnap.forEach(doc => vendedores.push(doc.data()));
+
+    const registros = await this._getRegistrosPorFecha(fecha);
+
+    const regsByCodigo = {};
+    registros.forEach(r => {
+      if (!regsByCodigo[r.codigo]) regsByCodigo[r.codigo] = [];
+      regsByCodigo[r.codigo].push(r);
     });
-    return result.rows;
+
+    const supMap = {};
+    vendedores.forEach(v => {
+      const sup = v.supervisor || 'SIN SUPERVISOR';
+      if (!supMap[sup]) {
+        supMap[sup] = { supervisor: sup, total_vendedores: 0, entradas_reg: 0, salidas_reg: 0 };
+      }
+      supMap[sup].total_vendedores++;
+      const regs = regsByCodigo[v.codigo] || [];
+      if (regs.some(r => r.tipo.toUpperCase().includes('ENTRADA'))) supMap[sup].entradas_reg++;
+      if (regs.some(r => r.tipo.toUpperCase().includes('SALIDA'))) supMap[sup].salidas_reg++;
+    });
+
+    return Object.values(supMap);
   }
 
   static async getDetalle({ fecha, supervisor, texto, estado }) {
-    let sql = `
-      SELECT v.codigo, v.nombre, v.supervisor,
-             r_ent.id as ent_id, r_ent.fecha as ent_fecha, r_ent.foto as ent_foto,
-             r_ent.comentario as ent_comentario, r_ent.latitud as ent_lat, r_ent.longitud as ent_lng,
-             r_sal.id as sal_id, r_sal.fecha as sal_fecha, r_sal.foto as sal_foto,
-             r_sal.comentario as sal_comentario, r_sal.latitud as sal_lat, r_sal.longitud as sal_lng
-      FROM vendedores v
-      LEFT JOIN registros r_ent ON r_ent.codigo = v.codigo
-        AND r_ent.tipo LIKE '%ENTRADA%'
-        AND DATE(r_ent.fecha) = ?
-      LEFT JOIN registros r_sal ON r_sal.codigo = v.codigo
-        AND r_sal.tipo LIKE '%SALIDA%'
-        AND DATE(r_sal.fecha) = ?
-    `;
-    const args = [fecha, fecha];
+    const vendedoresSnap = await db.collection(VENDEDORES).get();
+    let vendedores = [];
+    vendedoresSnap.forEach(doc => vendedores.push(doc.data()));
 
     if (supervisor !== 'TODOS') {
-      sql += ' AND v.supervisor = ?';
-      args.push(supervisor);
+      vendedores = vendedores.filter(v => v.supervisor === supervisor);
     }
     if (texto) {
-      sql += ' AND (v.codigo LIKE ? OR v.nombre LIKE ?)';
-      args.push(`%${texto}%`, `%${texto}%`);
+      const t = texto.toLowerCase();
+      vendedores = vendedores.filter(v =>
+        v.codigo.toLowerCase().includes(t) || v.nombre.toLowerCase().includes(t)
+      );
     }
 
-    sql += ' ORDER BY v.nombre';
+    const registros = await this._getRegistrosPorFecha(fecha);
 
-    let rows = (await db.execute({ sql, args })).rows;
+    const regsByCodigo = {};
+    registros.forEach(r => {
+      if (!regsByCodigo[r.codigo]) regsByCodigo[r.codigo] = [];
+      regsByCodigo[r.codigo].push(r);
+    });
 
-    if (estado && estado !== 'TODOS') {
-      rows = rows.filter(r => {
+    const result = [];
+    vendedores.forEach(v => {
+      const regs = regsByCodigo[v.codigo] || [];
+      const entrada = regs.find(r => r.tipo.toUpperCase().includes('ENTRADA'));
+      const salida = regs.find(r => r.tipo.toUpperCase().includes('SALIDA'));
+
+      const item = {
+        codigo: v.codigo,
+        nombre: v.nombre,
+        supervisor: v.supervisor || '-',
+        ent_id: entrada ? 1 : null,
+        ent_fecha: entrada ? entrada.fecha : null,
+        ent_foto: entrada ? entrada.foto : null,
+        ent_comentario: entrada ? entrada.comentario : null,
+        ent_lat: entrada ? entrada.latitud : null,
+        ent_lng: entrada ? entrada.longitud : null,
+        sal_id: salida ? 1 : null,
+        sal_fecha: salida ? salida.fecha : null,
+        sal_foto: salida ? salida.foto : null,
+        sal_comentario: salida ? salida.comentario : null,
+        sal_lat: salida ? salida.latitud : null,
+        sal_lng: salida ? salida.longitud : null,
+      };
+
+      if (estado && estado !== 'TODOS') {
         switch (estado) {
-          case 'ENTRADA_REG': return r.ent_id !== null;
-          case 'ENTRADA_PEND': return r.ent_id === null;
-          case 'SALIDA_REG': return r.sal_id !== null;
-          case 'SALIDA_PEND': return r.sal_id === null;
-          default: return true;
+          case 'ENTRADA_REG': if (!entrada) return; break;
+          case 'ENTRADA_PEND': if (entrada) return; break;
+          case 'SALIDA_REG': if (!salida) return; break;
+          case 'SALIDA_PEND': if (salida) return; break;
         }
-      });
-    }
-    return rows;
+      }
+
+      result.push(item);
+    });
+
+    return result;
   }
 
   static async getGraficosTimeline(fecha) {
-    const result = await db.execute({
-      sql: `SELECT tipo, CAST(strftime('%H', fecha) AS TEXT) as hora, COUNT(*) as total
-            FROM registros
-            WHERE DATE(fecha) = ?
-            GROUP BY tipo, strftime('%H', fecha)
-            ORDER BY hora`,
-      args: [fecha],
+    const startDate = `${fecha} 00:00:00`;
+    const endDate = `${fecha} 23:59:59`;
+    const snap = await db.collection(REGISTROS)
+      .where('fecha', '>=', startDate)
+      .where('fecha', '<=', endDate)
+      .get();
+
+    const hourMap = {};
+    snap.forEach(doc => {
+      const r = doc.data();
+      const hour = r.fecha.split(' ')[1].split(':')[0];
+      const key = `${r.tipo}_${hour}`;
+      if (!hourMap[key]) {
+        hourMap[key] = { tipo: r.tipo, hora: hour, total: 0 };
+      }
+      hourMap[key].total++;
     });
-    return result.rows;
+
+    return Object.values(hourMap);
+  }
+
+  static async _getRegistrosPorFecha(fecha) {
+    const startDate = `${fecha} 00:00:00`;
+    const endDate = `${fecha} 23:59:59`;
+    const snap = await db.collection(REGISTROS)
+      .where('fecha', '>=', startDate)
+      .where('fecha', '<=', endDate)
+      .get();
+
+    const registros = [];
+    snap.forEach(doc => registros.push(doc.data()));
+    return registros;
   }
 }
 

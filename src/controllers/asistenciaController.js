@@ -1,10 +1,6 @@
 const VendedorModel = require('../models/VendedorModel');
 const RegistroModel = require('../models/RegistroModel');
 const UsuarioModel = require('../models/UsuarioModel');
-const fs = require('fs');
-const path = require('path');
-
-const UPLOADS_DIR = path.join(__dirname, '..', '..', 'uploads');
 
 exports.getVendedores = async (req, res) => {
   try {
@@ -153,12 +149,8 @@ exports.crearRegistro = async (req, res) => {
     }
 
     let rutaFoto = null;
-    if (fotoBase64 && fotoNombre) {
-      const buffer = Buffer.from(fotoBase64, 'base64');
-      const safeName = fotoNombre.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const filePath = path.join(UPLOADS_DIR, safeName);
-      fs.writeFileSync(filePath, buffer);
-      rutaFoto = `/uploads/${safeName}`;
+    if (fotoBase64) {
+      rutaFoto = `data:image/jpeg;base64,${fotoBase64}`;
     }
 
     const result = await RegistroModel.crear({

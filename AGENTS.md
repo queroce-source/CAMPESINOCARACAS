@@ -1,19 +1,19 @@
 # AGENTS.md
 
-Sistema "Control de Asistencia y Registro de Campo para Vendedores" — Node.js + Express + SQLite.
+Sistema "Control de Asistencia y Registro de Campo para Vendedores" — Node.js + Express + Firebase Firestore.
 
 ## Arquitectura actual
 
 - **MVC**: `src/config/` → `src/models/` → `src/controllers/` → `src/routes/` → `server.js`
 - **Frontend estático** en `views/` (HTML/CSS/JS vanilla, servido por Express)
-- **BD**: SQLite (`asistencia.db`) con índices en `registros(codigo, fecha)`, `registros(tipo, fecha)`, `vendedores(codigo)`, `usuarios(usuario)`
+- **BD**: Firebase Firestore (3 colecciones: `vendedores`, `usuarios`, `registros`)
 
 ## Comandos
 
 | Comando | Uso |
 |---------|-----|
 | `npm start` | Inicia servidor en puerto 3000 |
-| `npm run seed` | Pobla DB con datos de prueba (12 vendedores, 3 supervisores, registros) |
+| `npm run seed` | Pobla Firestore con datos de prueba (12 vendedores, 4 usuarios, registros) |
 | `npm run dev` | Inicia con `--watch` (recarga automática) |
 
 ## Endpoints API
@@ -22,40 +22,29 @@ Sistema "Control de Asistencia y Registro de Campo para Vendedores" — Node.js 
 |--------|------|-------------|
 | POST | `/api/auth/login` | Login (JSON: `{usuario, clave}`) |
 | GET | `/api/vendedores?q=texto` | Búsqueda predictiva de vendedores |
-| GET | `/api/registros/dashboard?fecha=YYYY-MM-DD&supervisor=X` | KPIs agregados por supervisor (LEFT JOIN, una consulta) |
+| GET | `/api/registros/dashboard?fecha=YYYY-MM-DD&supervisor=X` | KPIs agregados por supervisor |
 | GET | `/api/registros/detalle?fecha=YYYY-MM-DD&supervisor=X&texto=&estado=` | Detalle por vendedor con filtros |
 | GET | `/api/registros/graficos?fecha=YYYY-MM-DD` | Datos para Chart.js (barras + timeline) |
-| POST | `/api/registros` | Crear registro + foto (Base64 → archivo en `uploads/`) |
+| POST | `/api/registros` | Crear registro (foto en Base64, se almacena en DB como data URL) |
 
-## Turso (base de datos edge)
+## Firebase (Firestore)
 
-En lugar de `sqlite3`, se usa `@libsql/client` que soporta tanto local (`file:asistencia.db`) como remoto (Turso edge). La conexión se configura con variables de entorno:
-
-```
-TURSO_DB_URL=libsql://...   # remoto
-TURSO_DB_TOKEN=eyJ...       # solo remoto
-```
-
-Sin variables de entorno → usa `file:asistencia.db` local. Las consultas usan `await db.execute({ sql, args })` en vez de callbacks.
+- Se usa `firebase-admin` (SDK server-side) con una service account.
+- La conexión se configura con la variable de entorno `FIREBASE_SERVICE_ACCOUNT` que debe contener el JSON completo de la service account en una sola línea.
+- Las fotos se almacenan como `data:image/jpeg;base64,...` directamente en el campo `foto` del documento.
 
 ## Deploy (Vercel)
 
 - Entrypoint serverless: `api/index.js` (importa `app.js`)
 - `app.js` exporta la app Express sin `app.listen()`
 - `server.js` solo para desarrollo local
-- Config de rutas en `vercel.json`
-
-## Consultas optimizadas (Fase 1)
-
-- Dashboard y detalle usan **LEFT JOIN doble** en una sola consulta en vez de bucles JS
-- Filtros (fecha, supervisor, texto) se aplican en SQL, no en el navegador
-- Fotos se guardan como archivos en `uploads/`, ruta en DB (no Base64 en celdas)
+- Config de rutas en `vercel.json` (todo al handler Express)
+- En Vercel agregar la variable `FIREBASE_SERVICE_ACCOUNT` con el JSON de la service account
 
 ## Pendiente para Fase 2
 
 - Reemplazar autenticación simple con **bcryptjs** (hash de claves) + **jsonwebtoken** (JWT)
 - Middleware `verifyToken` para rutas protegidas
-- Login vía POST con JSON en vez de GET con credenciales en URL (ya implementado parcialmente)
 
 ## Convenciones
 
