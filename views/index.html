@@ -13,7 +13,7 @@
     h2 { color: var(--azul-marino); margin-top: 5px; margin-bottom: 20px; font-size: 20px; text-align: center; font-weight: 700; }
     .form-group { margin-bottom: 16px; position: relative; }
     label { font-weight: 600; font-size: 13px; color: var(--azul-marino); margin-bottom: 6px; display: block; }
-    input[type="text"], textarea, input[type="file"] { width: 100%; padding: 10px 12px; border: 1px solid var(--borde-input); border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; }
+    input[type="text"], textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--borde-input); border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; }
     input[type="text"]:focus, textarea:focus { border-color: var(--naranja); }
     input[readonly] { background-color: #e2e8f0; color: #475569; font-weight: bold; cursor: not-allowed; }
     .dropdown-list { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--borde-input); border-radius: 0 0 6px 6px; max-height: 180px; overflow-y: auto; z-index: 1000; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
@@ -23,6 +23,14 @@
     .btn-submit:hover { background: var(--naranja-hover); }
     .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; }
     .msg-gps { color: var(--rojo); font-size: 12px; font-weight: bold; text-align: center; margin-top: 10px; }
+    .camara-container { width: 100%; border: 2px dashed var(--borde-input); border-radius: 8px; overflow: hidden; background: #f8fafc; text-align: center; }
+    .camara-container video { width: 100%; display: block; }
+    .camara-container .placeholder { padding: 30px 10px; color: #94a3b8; font-size: 14px; }
+    .btn-foto { width: 100%; background: var(--azul-marino); color: white; border: none; padding: 10px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 6px; transition: 0.2s; }
+    .btn-foto:hover { background: #1e2d3a; }
+    .btn-foto:disabled { background: #94a3b8; cursor: not-allowed; }
+    .foto-preview { width: 100%; border-radius: 6px; margin-top: 6px; display: none; }
+    .foto-tomada { border: 2px solid #16a34a; border-radius: 8px; }
   </style>
 </head>
 <body>
@@ -52,8 +60,15 @@
       <textarea id="comentario" rows="3" placeholder="Escribe alguna novedad u observación aquí..."></textarea>
     </div>
     <div class="form-group">
-      <label for="foto">Foto obligatoria (Cámara en vivo):</label>
-      <input type="file" id="foto" accept="image/*" capture="environment" required>
+      <label>Foto obligatoria (Cámara en vivo):</label>
+      <div class="camara-container" id="camaraContainer">
+        <div class="placeholder" id="camaraPlaceholder">Presiona "Iniciar Cámara" para tomar la foto</div>
+        <video id="camaraVideo" autoplay playsinline style="display:none;"></video>
+      </div>
+      <button type="button" id="btnIniciarCamara" class="btn-foto">📷 Iniciar Cámara</button>
+      <button type="button" id="btnTomarFoto" class="btn-foto" style="display:none;">📸 Tomar Foto</button>
+      <canvas id="camaraCanvas" style="display:none;"></canvas>
+      <img id="fotoPreview" class="foto-preview" alt="Vista previa">
     </div>
     <div id="msgGps" class="msg-gps">Obteniendo ubicación GPS...</div>
     <button type="submit" id="btnEnviar" class="btn-submit" disabled>Enviar Registro</button>
@@ -64,6 +79,19 @@
   let listaVendedoresGlobal = [];
   let latitudUsuario = null;
   let longitudUsuario = null;
+  let fotoBase64Capturada = null;
+  let camaraStream = null;
+
+  function formatearFechaDispositivo() {
+    const ahora = new Date();
+    const y = ahora.getFullYear();
+    const m = String(ahora.getMonth() + 1).padStart(2, '0');
+    const d = String(ahora.getDate()).padStart(2, '0');
+    const h = String(ahora.getHours()).padStart(2, '0');
+    const min = String(ahora.getMinutes()).padStart(2, '0');
+    const s = String(ahora.getSeconds()).padStart(2, '0');
+    return `${y}-${m}-${d} ${h}:${min}:${s}`;
+  }
 
   function definirTipoRegistro() {
     const hora = new Date().getHours();
@@ -81,7 +109,7 @@
           longitudUsuario = pos.coords.longitude;
           msgGps.style.color = "#16a34a";
           msgGps.innerText = "✓ Ubicación GPS confirmada";
-          btnEnviar.disabled = false;
+          if (fotoBase64Capturada) btnEnviar.disabled = false;
         },
         (err) => {
           msgGps.style.color = "#dc2626";
@@ -103,6 +131,70 @@
     } catch (e) {
       console.error("Error al cargar vendedores", e);
     }
+  }
+
+  function iniciarCamara() {
+    const video = document.getElementById('camaraVideo');
+    const placeholder = document.getElementById('camaraPlaceholder');
+    const btnIniciar = document.getElementById('btnIniciarCamara');
+    const btnTomar = document.getElementById('btnTomarFoto');
+
+    if (camaraStream) {
+      detenerCamara();
+      return;
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert("Tu navegador no soporta acceso a la cámara. Usa un dispositivo móvil o Chrome actualizado.");
+      return;
+    }
+
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    }).then(stream => {
+      camaraStream = stream;
+      video.srcObject = stream;
+      video.style.display = 'block';
+      placeholder.style.display = 'none';
+      btnIniciar.innerText = '❌ Detener Cámara';
+      btnTomar.style.display = 'block';
+    }).catch(err => {
+      alert("No se pudo acceder a la cámara. Verifica los permisos.");
+      console.error("Error cámara:", err);
+    });
+  }
+
+  function detenerCamara() {
+    if (camaraStream) {
+      camaraStream.getTracks().forEach(t => t.stop());
+      camaraStream = null;
+    }
+    const video = document.getElementById('camaraVideo');
+    video.style.display = 'none';
+    document.getElementById('camaraPlaceholder').style.display = 'block';
+    document.getElementById('btnIniciarCamara').innerText = '📷 Iniciar Cámara';
+    document.getElementById('btnTomarFoto').style.display = 'none';
+  }
+
+  function tomarFoto() {
+    const video = document.getElementById('camaraVideo');
+    const canvas = document.getElementById('camaraCanvas');
+    const preview = document.getElementById('fotoPreview');
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+
+    fotoBase64Capturada = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+    preview.src = `data:image/jpeg;base64,${fotoBase64Capturada}`;
+    preview.style.display = 'block';
+
+    detenerCamara();
+
+    const btnEnviar = document.getElementById('btnEnviar');
+    if (latitudUsuario) btnEnviar.disabled = false;
   }
 
   const inputBuscar = document.getElementById('buscarVendedor');
@@ -141,14 +233,8 @@
     }
   });
 
-  function convertirFotoBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result.split(',')[1]);
-      reader.onerror = error => reject(error);
-      reader.readAsDataURL(file);
-    });
-  }
+  document.getElementById('btnIniciarCamara').addEventListener('click', iniciarCamara);
+  document.getElementById('btnTomarFoto').addEventListener('click', tomarFoto);
 
   document.getElementById('registroForm').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -156,27 +242,31 @@
     const nombre = document.getElementById('nombreVendedor').value;
     const tipo = document.getElementById('tipoRegistro').value;
     const comentario = document.getElementById('comentario').value;
-    const fotoInput = document.getElementById('foto').files[0];
     const btnEnviar = document.getElementById('btnEnviar');
 
     if (!codigo || !nombre) {
       alert("Por favor busca y selecciona un vendedor válido de la lista.");
       return;
     }
-    if (!fotoInput) { alert("La foto es obligatoria."); return; }
+    if (!fotoBase64Capturada) {
+      alert("Debes tomar una foto en vivo con la cámara.");
+      return;
+    }
+
+    if (camaraStream) detenerCamara();
 
     btnEnviar.disabled = true;
     btnEnviar.innerText = "Enviando registro...";
 
     try {
-      const fotoBase64 = await convertirFotoBase64(fotoInput);
       const payload = {
         codigo, nombre, tipo,
         comentario: comentario,
         latitud: latitudUsuario,
         longitud: longitudUsuario,
-        fotoBase64,
-        fotoNombre: `foto_${codigo}_${Date.now()}.jpg`
+        fotoBase64: fotoBase64Capturada,
+        fotoNombre: `foto_${codigo}_${Date.now()}.jpg`,
+        fechaDispositivo: formatearFechaDispositivo()
       };
 
       const response = await fetch('/api/registros', {

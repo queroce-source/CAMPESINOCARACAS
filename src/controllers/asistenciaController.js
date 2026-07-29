@@ -142,7 +142,7 @@ exports.getGraficos = async (req, res) => {
 
 exports.crearRegistro = async (req, res) => {
   try {
-    const { codigo, nombre, tipo, comentario, latitud, longitud, fotoBase64, fotoNombre } = req.body;
+    const { codigo, nombre, tipo, comentario, latitud, longitud, fotoBase64, fotoNombre, fechaDispositivo } = req.body;
 
     if (!codigo || !nombre || !tipo) {
       return res.status(400).json({ success: false, message: 'Faltan datos obligatorios' });
@@ -160,7 +160,8 @@ exports.crearRegistro = async (req, res) => {
       comentario,
       latitud,
       longitud,
-      foto: rutaFoto
+      foto: rutaFoto,
+      fecha: fechaDispositivo
     });
 
     res.json({ success: true, id: result.id });

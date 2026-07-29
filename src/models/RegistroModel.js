@@ -4,8 +4,8 @@ const VENDEDORES = 'vendedores';
 const REGISTROS = 'registros';
 
 class RegistroModel {
-  static async crear({ codigo, nombre, tipo, comentario, latitud, longitud, foto }) {
-    const fecha = new Date().toISOString().replace('T', ' ').substring(0, 19);
+  static async crear({ codigo, nombre, tipo, comentario, latitud, longitud, foto, fecha }) {
+    fecha = fecha || new Date().toISOString().replace('T', ' ').substring(0, 19);
     const docRef = await db.collection(REGISTROS).add({
       codigo, nombre, tipo, comentario,
       latitud: latitud || null,
