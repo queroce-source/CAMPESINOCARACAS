@@ -48,7 +48,11 @@ function parseDate(venezuelanDate) {
   if (parts.length < 2) return null;
   const dateParts = parts[0].split('/');
   if (dateParts.length !== 3) return null;
-  return `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')} ${parts[1]}`;
+  const timeParts = parts[1].split(':');
+  const hora = timeParts[0].padStart(2, '0');
+  const minuto = timeParts[1] ? timeParts[1].padStart(2, '0') : '00';
+  const segundo = timeParts[2] ? timeParts[2].padStart(2, '0') : '00';
+  return `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')} ${hora}:${minuto}:${segundo}`;
 }
 
 function parseCoord(val) {

@@ -501,11 +501,19 @@
 
     try {
       const params = new URLSearchParams({ fechaInicio: rango.inicio, fechaFin: rango.fin, supervisor: sup, texto: filters.texto });
+      console.log('[DEBUG] Consultando rango:', rango.inicio, '→', rango.fin, '| supervisor:', sup, '| texto:', filters.texto);
       const res = await fetch(`/api/registros/detalle?${params}`);
       const json = await res.json();
       if (!json.success) throw new Error('Error del servidor');
 
       allData = json.data;
+      console.log('[DEBUG] Vendedores recibidos:', allData.length);
+      const conEntrada = allData.filter(i => i.entrada).length;
+      const conSalida = allData.filter(i => i.salida).length;
+      console.log('[DEBUG] Con entrada:', conEntrada, '| Con salida:', conSalida);
+      if (allData.length > 0 && conEntrada === 0 && conSalida === 0) {
+        console.warn('[DEBUG] ⚠ POSIBLE BUG: 0 registros con entrada/salida — revisar formato fecha en Firestore');
+      }
 
       const filtered = getFilteredData();
       const kpi = computeKPI(filtered);
