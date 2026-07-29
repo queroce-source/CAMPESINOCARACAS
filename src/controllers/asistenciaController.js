@@ -57,14 +57,16 @@ exports.getDashboard = async (req, res) => {
 
 exports.getDetalle = async (req, res) => {
   try {
-    const { fecha, supervisor, texto, estado } = req.query;
-    const targetDate = fecha || new Date().toISOString().split('T')[0];
+    const { fechaInicio, fechaFin, supervisor, texto } = req.query;
+    const hoy = new Date().toISOString().split('T')[0];
+    const inicio = fechaInicio || hoy;
+    const fin = fechaFin || hoy;
 
     const rows = await RegistroModel.getDetalle({
-      fecha: targetDate,
+      fechaInicio: inicio,
+      fechaFin: fin,
       supervisor: supervisor || 'TODOS',
       texto: texto || '',
-      estado: estado || 'TODOS'
     });
 
     const detalle = rows.map(r => ({

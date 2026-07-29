@@ -24,7 +24,7 @@ class RegistroModel {
     const vendedores = [];
     vendedoresSnap.forEach(doc => vendedores.push(doc.data()));
 
-    const registros = await this._getRegistrosPorFecha(fecha);
+    const registros = await this._getRegistrosPorRango(fecha, fecha);
 
     const regsByCodigo = {};
     registros.forEach(r => {
@@ -47,7 +47,7 @@ class RegistroModel {
     return Object.values(supMap);
   }
 
-  static async getDetalle({ fecha, supervisor, texto, estado }) {
+  static async getDetalle({ fechaInicio, fechaFin, supervisor, texto }) {
     const vendedoresSnap = await db.collection(VENDEDORES).get();
     let vendedores = [];
     vendedoresSnap.forEach(doc => vendedores.push(doc.data()));
@@ -62,7 +62,7 @@ class RegistroModel {
       );
     }
 
-    const registros = await this._getRegistrosPorFecha(fecha);
+    const registros = await this._getRegistrosPorRango(fechaInicio, fechaFin);
 
     const regsByCodigo = {};
     registros.forEach(r => {
@@ -76,7 +76,7 @@ class RegistroModel {
       const entrada = regs.find(r => r.tipo.toUpperCase().includes('ENTRADA'));
       const salida = regs.find(r => r.tipo.toUpperCase().includes('SALIDA'));
 
-      const item = {
+      result.push({
         codigo: v.codigo,
         nombre: v.nombre,
         supervisor: v.supervisor || '-',
@@ -92,34 +92,16 @@ class RegistroModel {
         sal_comentario: salida ? salida.comentario : null,
         sal_lat: salida ? salida.latitud : null,
         sal_lng: salida ? salida.longitud : null,
-      };
-
-      if (estado && estado !== 'TODOS') {
-        switch (estado) {
-          case 'ENTRADA_REG': if (!entrada) return; break;
-          case 'ENTRADA_PEND': if (entrada) return; break;
-          case 'SALIDA_REG': if (!salida) return; break;
-          case 'SALIDA_PEND': if (salida) return; break;
-        }
-      }
-
-      result.push(item);
+      });
     });
 
     return result;
   }
 
   static async getGraficosTimeline(fecha) {
-    const startDate = `${fecha} 00:00:00`;
-    const endDate = `${fecha} 23:59:59`;
-    const snap = await db.collection(REGISTROS)
-      .where('fecha', '>=', startDate)
-      .where('fecha', '<=', endDate)
-      .get();
-
+    const snap = await this._getRegistrosPorRango(fecha, fecha);
     const hourMap = {};
-    snap.forEach(doc => {
-      const r = doc.data();
+    snap.forEach(r => {
       const hour = r.fecha.split(' ')[1].split(':')[0];
       const key = `${r.tipo}_${hour}`;
       if (!hourMap[key]) {
@@ -127,13 +109,12 @@ class RegistroModel {
       }
       hourMap[key].total++;
     });
-
     return Object.values(hourMap);
   }
 
-  static async _getRegistrosPorFecha(fecha) {
-    const startDate = `${fecha} 00:00:00`;
-    const endDate = `${fecha} 23:59:59`;
+  static async _getRegistrosPorRango(fechaInicio, fechaFin) {
+    const startDate = `${fechaInicio} 00:00:00`;
+    const endDate = `${fechaFin} 23:59:59`;
     const snap = await db.collection(REGISTROS)
       .where('fecha', '>=', startDate)
       .where('fecha', '<=', endDate)
