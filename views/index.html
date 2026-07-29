@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro de Campo - CEC</title>
+  <link rel="stylesheet" href="/css/estilos.css">
+  <style>
+    body { display: flex; justify-content: center; align-items: center; min-height: 90vh; padding: 20px 10px; }
+    .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); width: 100%; max-width: 420px; box-sizing: border-box; border-top: 5px solid var(--naranja); }
+    .logo-container { text-align: center; margin-bottom: 15px; }
+    .logo-container img { max-width: 220px; height: auto; }
+    h2 { color: var(--azul-marino); margin-top: 5px; margin-bottom: 20px; font-size: 20px; text-align: center; font-weight: 700; }
+    .form-group { margin-bottom: 16px; position: relative; }
+    label { font-weight: 600; font-size: 13px; color: var(--azul-marino); margin-bottom: 6px; display: block; }
+    input[type="text"], textarea, input[type="file"] { width: 100%; padding: 10px 12px; border: 1px solid var(--borde-input); border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; }
+    input[type="text"]:focus, textarea:focus { border-color: var(--naranja); }
+    input[readonly] { background-color: #e2e8f0; color: #475569; font-weight: bold; cursor: not-allowed; }
+    .dropdown-list { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--borde-input); border-radius: 0 0 6px 6px; max-height: 180px; overflow-y: auto; z-index: 1000; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+    .dropdown-item { padding: 10px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+    .dropdown-item:hover { background-color: var(--naranja); color: white; }
+    .btn-submit { width: 100%; background: var(--naranja); color: white; border: none; padding: 12px; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+    .btn-submit:hover { background: var(--naranja-hover); }
+    .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; }
+    .msg-gps { color: var(--rojo); font-size: 12px; font-weight: bold; text-align: center; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo-container">
+    <img id="logoCEC" src="/logo.jpeg" alt="Corporación El Campesino">
+  </div>
+  <h2>Registro de Campo</h2>
+  <form id="registroForm">
+    <div class="form-group">
+      <label>Tipo de Registro (Automático):</label>
+      <input type="text" id="tipoRegistro" readonly value="Cargando hora...">
+    </div>
+    <div class="form-group">
+      <label for="buscarVendedor">Buscar Vendedor (Código o Nombre):</label>
+      <input type="text" id="buscarVendedor" placeholder="Escribe tu código o nombre..." autocomplete="off">
+      <div id="listaVendedores" class="dropdown-list"></div>
+      <input type="hidden" id="codigoVendedorSelected">
+    </div>
+    <div class="form-group">
+      <label>Nombre Vendedor:</label>
+      <input type="text" id="nombreVendedor" readonly placeholder="Aparecerá automáticamente">
+    </div>
+    <div class="form-group">
+      <label for="comentario">Observación / Comentario (Opcional):</label>
+      <textarea id="comentario" rows="3" placeholder="Escribe alguna novedad u observación aquí..."></textarea>
+    </div>
+    <div class="form-group">
+      <label for="foto">Foto obligatoria (Cámara en vivo):</label>
+      <input type="file" id="foto" accept="image/*" capture="environment" required>
+    </div>
+    <div id="msgGps" class="msg-gps">Obteniendo ubicación GPS...</div>
+    <button type="submit" id="btnEnviar" class="btn-submit" disabled>Enviar Registro</button>
+  </form>
+</div>
+
+<script>
+  let listaVendedoresGlobal = [];
+  let latitudUsuario = null;
+  let longitudUsuario = null;
+
+  function definirTipoRegistro() {
+    const hora = new Date().getHours();
+    const campoTipo = document.getElementById('tipoRegistro');
+    campoTipo.value = hora < 13 ? "ENTRADA (Mañana)" : "SALIDA (Tarde)";
+  }
+
+  function obtenerUbicacion() {
+    const msgGps = document.getElementById('msgGps');
+    const btnEnviar = document.getElementById('btnEnviar');
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          latitudUsuario = pos.coords.latitude;
+          longitudUsuario = pos.coords.longitude;
+          msgGps.style.color = "#16a34a";
+          msgGps.innerText = "✓ Ubicación GPS confirmada";
+          btnEnviar.disabled = false;
+        },
+        (err) => {
+          msgGps.style.color = "#dc2626";
+          msgGps.innerText = "Error: Debes activar el GPS y permitir el acceso a tu ubicación.";
+          btnEnviar.disabled = true;
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    } else {
+      msgGps.innerText = "Tu navegador no soporta geolocalización.";
+    }
+  }
+
+  async function cargarVendedores() {
+    try {
+      const res = await fetch('/api/vendedores');
+      const result = await res.json();
+      listaVendedoresGlobal = result.data || [];
+    } catch (e) {
+      console.error("Error al cargar vendedores", e);
+    }
+  }
+
+  const inputBuscar = document.getElementById('buscarVendedor');
+  const listaContainer = document.getElementById('listaVendedores');
+
+  inputBuscar.addEventListener('input', function() {
+    const filtro = this.value.trim().toLowerCase();
+    listaContainer.innerHTML = '';
+    if (!filtro) { listaContainer.style.display = 'none'; return; }
+    const coincidencias = listaVendedoresGlobal.filter(v =>
+      String(v.codigo).toLowerCase().includes(filtro) ||
+      String(v.nombre).toLowerCase().includes(filtro)
+    );
+    if (coincidencias.length === 0) {
+      listaContainer.innerHTML = `<div class="dropdown-item" style="color:#888;">Sin coincidencias</div>`;
+    } else {
+      coincidencias.forEach(v => {
+        const item = document.createElement('div');
+        item.className = 'dropdown-item';
+        item.innerText = `${v.codigo} - ${v.nombre}`;
+        item.onclick = function() {
+          inputBuscar.value = `${v.codigo} - ${v.nombre}`;
+          document.getElementById('codigoVendedorSelected').value = v.codigo;
+          document.getElementById('nombreVendedor').value = v.nombre;
+          listaContainer.style.display = 'none';
+        };
+        listaContainer.appendChild(item);
+      });
+    }
+    listaContainer.style.display = 'block';
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!inputBuscar.contains(e.target) && !listaContainer.contains(e.target)) {
+      listaContainer.style.display = 'none';
+    }
+  });
+
+  function convertirFotoBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = error => reject(error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  document.getElementById('registroForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const codigo = document.getElementById('codigoVendedorSelected').value;
+    const nombre = document.getElementById('nombreVendedor').value;
+    const tipo = document.getElementById('tipoRegistro').value;
+    const comentario = document.getElementById('comentario').value;
+    const fotoInput = document.getElementById('foto').files[0];
+    const btnEnviar = document.getElementById('btnEnviar');
+
+    if (!codigo || !nombre) {
+      alert("Por favor busca y selecciona un vendedor válido de la lista.");
+      return;
+    }
+    if (!fotoInput) { alert("La foto es obligatoria."); return; }
+
+    btnEnviar.disabled = true;
+    btnEnviar.innerText = "Enviando registro...";
+
+    try {
+      const fotoBase64 = await convertirFotoBase64(fotoInput);
+      const payload = {
+        codigo, nombre, tipo,
+        comentario: comentario,
+        latitud: latitudUsuario,
+        longitud: longitudUsuario,
+        fotoBase64,
+        fotoNombre: `foto_${codigo}_${Date.now()}.jpg`
+      };
+
+      const response = await fetch('/api/registros', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert("¡Registro enviado con éxito!");
+        location.reload();
+      } else {
+        alert("Error al guardar: " + result.message);
+      }
+    } catch (err) {
+      alert("Ocurrió un error al enviar la información.");
+    } finally {
+      btnEnviar.disabled = false;
+      btnEnviar.innerText = "Enviar Registro";
+    }
+  });
+
+  window.onload = function() {
+    definirTipoRegistro();
+    obtenerUbicacion();
+    cargarVendedores();
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Asistencia - Panel Admin</title>
+  <link rel="stylesheet" href="/css/estilos.css">
+  <style>
+    #panelAdmin { display: none; }
+    .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
+    .kpi-card { padding: 15px; border-radius: 10px; }
+    .kpi-card .val { font-size: 24px; }
+    .modal-body { text-align: left; background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; white-space: pre-wrap; margin-bottom: 15px; }
+    .modal-btn { background: var(--naranja); color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; float: right; font-weight: bold; }
+    .modal-btn:hover { background: var(--naranja-hover); }
+    td { vertical-align: top; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div id="vistaLogin" class="login-container">
+    <div class="login-card">
+      <h2>Iniciar Sesión</h2>
+      <form id="loginForm">
+        <label for="usuario">Usuario:</label>
+        <input type="text" id="usuario" placeholder="Ej: HEIBER CHACON" required autocomplete="username">
+        <label for="clave">Contraseña:</label>
+        <input type="password" id="clave" placeholder="••••••••" required autocomplete="current-password">
+        <button type="submit" id="btnIngresar">Ingresar al Panel</button>
+      </form>
+      <div id="msgError" class="msg-error">Usuario o clave incorrectos.</div>
+    </div>
+  </div>
+  <div id="panelAdmin">
+    <div class="header">
+      <div>
+        <h2>Control de Asistencia Diaria</h2>
+        <div class="user-info" id="userInfo">Cargando usuario...</div>
+      </div>
+      <div class="btn-group">
+        <button class="btn-panel btn-refresh" onclick="cargarTodo()">🔄 Actualizar</button>
+        <button class="btn-panel btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
+      </div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi-card" style="border-color: var(--azul-marino);"><h4>Total Vendedores</h4><div class="val" id="kpiTotal" style="color:var(--azul-marino);">0</div></div>
+      <div class="kpi-card" style="border-color: #16a34a;"><h4>Entradas Registradas</h4><div class="val" id="kpiEntradasReg" style="color:#16a34a;">0</div></div>
+      <div class="kpi-card" style="border-color: #dc2626;"><h4>Entradas Pendientes</h4><div class="val" id="kpiEntradasPend" style="color:#dc2626;">0</div></div>
+      <div class="kpi-card" style="border-color: #2563eb;"><h4>Salidas Registradas</h4><div class="val" id="kpiSalidasReg" style="color:#2563eb;">0</div></div>
+      <div class="kpi-card" style="border-color: #ea580c;"><h4>Salidas Pendientes</h4><div class="val" id="kpiSalidasPend" style="color:#ea580c;">0</div></div>
+    </div>
+    <div class="card-table">
+      <h3>Estado por Vendedor (Hoy)</h3>
+      <table>
+        <thead><tr><th>Código</th><th>Nombre Vendedor</th><th>Supervisor / Grupo</th><th>Entrada (Mañana)</th><th>Salida (Tarde)</th></tr></thead>
+        <tbody id="tablaCuerpo"><tr><td colspan="5" style="text-align:center;">Cargando registros...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div id="modalObs" class="modal">
+  <div class="modal-content">
+    <div class="modal-header" id="modalTitulo">Observación del Registro</div>
+    <div class="modal-body" id="modalTexto">Sin comentario</div>
+    <button class="modal-btn" onclick="cerrarModal()">Cerrar</button>
+  </div>
+</div>
+<script>
+  let usuarioActual = null;
+
+  function verificarSesion() {
+    const userSesion = localStorage.getItem('userControlAsistencia');
+    if (userSesion) {
+      usuarioActual = JSON.parse(userSesion);
+      document.getElementById('vistaLogin').style.display = 'none';
+      document.getElementById('panelAdmin').style.display = 'block';
+      document.getElementById('userInfo').innerText = `Usuario: ${usuarioActual.usuario} | Rol: ${usuarioActual.rol} | Asignación: ${usuarioActual.supervisorAsignado || 'TODOS'}`;
+      cargarTodo();
+    } else {
+      document.getElementById('vistaLogin').style.display = 'flex';
+      document.getElementById('panelAdmin').style.display = 'none';
+    }
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnIngresar');
+    const msgError = document.getElementById('msgError');
+    btn.disabled = true;
+    btn.innerText = "Verificando...";
+    msgError.style.display = "none";
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          usuario: document.getElementById('usuario').value.trim(),
+          clave: document.getElementById('clave').value.trim()
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem('userControlAsistencia', JSON.stringify({
+          usuario: data.usuario, rol: data.rol, supervisorAsignado: data.supervisorAsignado || "TODOS"
+        }));
+        verificarSesion();
+      } else {
+        msgError.innerText = data.message || "Usuario o clave incorrectos.";
+        msgError.style.display = "block";
+      }
+    } catch (err) {
+      alert("Error de conexión al servidor.");
+    } finally {
+      btn.disabled = false;
+      btn.innerText = "Ingresar al Panel";
+    }
+  });
+
+  function cerrarSesion() {
+    localStorage.removeItem('userControlAsistencia');
+    location.reload();
+  }
+
+  function formatearHora(fechaStr) {
+    if (!fechaStr) return '';
+    const d = new Date(fechaStr);
+    return isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+  }
+
+  async function cargarTodo() {
+    const tbody = document.getElementById('tablaCuerpo');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Actualizando información...</td></tr>';
+    try {
+      const hoy = new Date().toISOString().split('T')[0];
+      let supParam = 'TODOS';
+      if (usuarioActual && usuarioActual.rol !== 'ADMIN' && usuarioActual.supervisorAsignado && usuarioActual.supervisorAsignado !== 'TODOS') {
+        supParam = usuarioActual.supervisorAsignado;
+      }
+      const [resDet, resDash] = await Promise.all([
+        fetch(`/api/registros/detalle?fecha=${hoy}&supervisor=${supParam}&texto=&estado=TODOS`),
+        fetch(`/api/registros/dashboard?fecha=${hoy}&supervisor=${supParam}`)
+      ]);
+      const detData = await resDet.json();
+      const dashData = await resDash.json();
+      if (!detData.success || !dashData.success) throw new Error('Error en servidor');
+      const kpi = dashData.data.kpi;
+      document.getElementById('kpiTotal').innerText = kpi.totalVendedores;
+      document.getElementById('kpiEntradasReg').innerText = kpi.entradasReg;
+      document.getElementById('kpiEntradasPend').innerText = kpi.entradasPend;
+      document.getElementById('kpiSalidasReg').innerText = kpi.salidasReg;
+      document.getElementById('kpiSalidasPend').innerText = kpi.salidasPend;
+      tbody.innerHTML = '';
+      if (detData.data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay registros para hoy.</td></tr>';
+        return;
+      }
+      detData.data.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${r.codigo}</strong></td>
+          <td>${r.nombre}</td>
+          <td>${r.supervisor || '-'}</td>
+          <td>${generarHtmlEstado(r.entrada)}</td>
+          <td>${generarHtmlEstado(r.salida)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:red;">Error al cargar datos del servidor.</td></tr>';
+    }
+  }
+
+  function generarHtmlEstado(reg) {
+    if (!reg) return `<span class="badge-pend">PENDIENTE</span>`;
+    const hora = formatearHora(reg.fecha);
+    let html = `<div><span class="badge-reg">✓ REGISTRADO</span> <span class="hora">🕒 ${hora}</span></div>`;
+    html += `<div class="actions">`;
+    if (reg.foto) html += `<a href="${reg.foto}" target="_blank" class="btn-act btn-foto">📸 Foto</a>`;
+    if (reg.maps) html += `<a href="${reg.maps}" target="_blank" class="btn-act btn-mapa">📍 Mapa</a>`;
+    if (reg.latitud && reg.longitud) html += `<a href="https://maps.google.com/maps?q=${reg.latitud},${reg.longitud}" target="_blank" class="btn-act btn-mapa">📍 Mapa</a>`;
+    if (reg.comentario && reg.comentario.trim() !== "") html += `<button onclick="verComentario('${reg.nombre || ''}', '${reg.comentario.replace(/'/g, "\\'")}')" class="btn-act btn-obs">💬 Obs</button>`;
+    html += `</div>`;
+    return html;
+  }
+
+  function verComentario(nombre, comentario) {
+    document.getElementById('modalTitulo').innerText = `Observación de: ${nombre}`;
+    document.getElementById('modalTexto').innerText = comentario;
+    document.getElementById('modalObs').style.display = 'flex';
+  }
+
+  function cerrarModal() { document.getElementById('modalObs').style.display = 'none'; }
+
+  window.onload = function() { verificarSesion(); };
+</script>
+</body>
+</html>

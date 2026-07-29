@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Asistencia - CEC</title>
+  <link rel="stylesheet" href="/css/estilos.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    #panelAdmin { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- VISTA 1: INICIAR SESIÓN -->
+  <div id="vistaLogin" class="login-container">
+    <div class="login-card">
+      <img id="logoLogin" src="/logo.jpeg" alt="Corporación El Campesino" class="logo-img">
+      <h2>Iniciar Sesión</h2>
+      <form id="loginForm">
+        <label for="usuario">Usuario:</label>
+        <input type="text" id="usuario" placeholder="Ej: CARLOS OMAR QUERO" required autocomplete="username">
+        <label for="clave">Contraseña:</label>
+        <input type="password" id="clave" placeholder="••••••••" required autocomplete="current-password">
+        <button type="submit" id="btnIngresar">Ingresar al Panel</button>
+      </form>
+      <div id="msgError" class="msg-error">Usuario o clave incorrectos.</div>
+    </div>
+  </div>
+
+  <!-- VISTA 2: PANEL ADMINISTRATIVO -->
+  <div id="panelAdmin">
+    <div class="header">
+      <div class="header-left">
+        <img id="logoHeader" src="/logo.jpeg" alt="Logo CEC">
+        <div>
+          <h2>Control de Asistencia Diaria</h2>
+          <div class="user-info" id="userInfo">Cargando usuario...</div>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn-panel btn-refresh" onclick="cargarTodo()">🔄 Actualizar</button>
+        <button class="btn-panel btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
+      </div>
+    </div>
+
+    <div class="filter-container">
+      <div class="filter-card general">
+        <div class="filter-group">
+          <label for="filterTexto">🔍 Buscar Vendedor</label>
+          <input type="text" id="filterTexto" placeholder="Código o nombre..." oninput="aplicarFiltros()">
+        </div>
+        <div class="filter-group">
+          <label for="filterSupervisor">👥 Supervisor / Grupo</label>
+          <select id="filterSupervisor" onchange="aplicarFiltros()">
+            <option value="TODOS">-- Todos los grupos --</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filterEstado">📌 Estado Asistencia</label>
+          <select id="filterEstado" onchange="aplicarFiltros()">
+            <option value="TODOS">-- Todos los estados --</option>
+            <option value="ENTRADA_REG">Entrada Registrada</option>
+            <option value="ENTRADA_PEND">Entrada Pendiente</option>
+            <option value="SALIDA_REG">Salida Registrada</option>
+            <option value="SALIDA_PEND">Salida Pendiente</option>
+          </select>
+        </div>
+        <button class="btn-reset-filter" onclick="limpiarFiltros()">🧹 Limpiar Filtros</button>
+      </div>
+
+      <div class="filter-card dates">
+        <div class="filter-group">
+          <label for="filterAno">📅 Año</label>
+          <select id="filterAno" onchange="aplicarFiltros()">
+            <option value="TODOS">-- Todos los Años --</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filterMes">📆 Mes</label>
+          <select id="filterMes" onchange="aplicarFiltros()">
+            <option value="TODOS">-- Todos los Meses --</option>
+            <option value="0">Enero</option>
+            <option value="1">Febrero</option>
+            <option value="2">Marzo</option>
+            <option value="3">Abril</option>
+            <option value="4">Mayo</option>
+            <option value="5">Junio</option>
+            <option value="6">Julio</option>
+            <option value="7">Agosto</option>
+            <option value="8">Septiembre</option>
+            <option value="9">Octubre</option>
+            <option value="10">Noviembre</option>
+            <option value="11">Diciembre</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filterDia">📆 Día del Mes</label>
+          <select id="filterDia" onchange="aplicarFiltros()">
+            <option value="TODOS">-- Todos los Días --</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filterDiaSemana">🗓️ Día Semana</label>
+          <select id="filterDiaSemana" onchange="aplicarFiltros()">
+            <option value="TODOS">-- Todos los Días --</option>
+            <option value="1">Lunes</option>
+            <option value="2">Martes</option>
+            <option value="3">Miércoles</option>
+            <option value="4">Jueves</option>
+            <option value="5">Viernes</option>
+            <option value="6">Sábado</option>
+            <option value="0">Domingo</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-section" id="capturaKPIs">
+      <div class="kpi-header">
+        <h3>📌 Indicadores Generales de Asistencia</h3>
+        <button class="btn-copy-img" title="Copiar reporte" onclick="copiarElementoComoImagen('capturaKPIs', this)">
+          <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+        </button>
+      </div>
+      <div class="kpi-container-flex">
+        <div class="kpi-group-card" style="flex: 1; min-width: 160px; background: #f8fafc; border: 1px solid #e2e8f0; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; border-left: 5px solid #2b3a4a;">
+          <div style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">Vendedores Filtrados</div>
+          <div class="val" id="kpiTotal" style="font-size: 24px; font-weight: bold; color: #2b3a4a; margin-top: 5px;">0</div>
+        </div>
+        <div class="kpi-group-card" style="flex: 3; min-width: 300px; background: #f0fdf4; border: 1px solid #bbf7d0;">
+          <div class="kpi-group-title" style="color: #166534;">🌅 SECCIÓN DE ENTRADAS</div>
+          <div class="kpi-grid">
+            <div class="kpi-card" style="border-left: 5px solid #16a34a;"><h4>Entradas Registradas</h4><div class="val" id="kpiEntradasReg" style="color:#16a34a;">0</div></div>
+            <div class="kpi-card" style="border-left: 5px solid #dc2626;"><h4>Entradas Pendientes</h4><div class="val" id="kpiEntradasPend" style="color:#dc2626;">0</div></div>
+            <div class="kpi-card" style="border-left: 5px solid #e85d04;"><h4>% Eficacia Entradas</h4><div class="val" id="kpiPctEntrada" style="color:#e85d04;">0%</div></div>
+          </div>
+        </div>
+        <div class="kpi-group-card" style="flex: 3; min-width: 300px; background: #eff6ff; border: 1px solid #bfdbfe;">
+          <div class="kpi-group-title" style="color: #1e40af;">🌆 SECCIÓN DE SALIDAS</div>
+          <div class="kpi-grid">
+            <div class="kpi-card" style="border-left: 5px solid #2563eb;"><h4>Salidas Registradas</h4><div class="val" id="kpiSalidasReg" style="color:#2563eb;">0</div></div>
+            <div class="kpi-card" style="border-left: 5px solid #ea580c;"><h4>Salidas Pendientes</h4><div class="val" id="kpiSalidasPend" style="color:#ea580c;">0</div></div>
+            <div class="kpi-card" style="border-left: 5px solid #8b5cf6;"><h4>% Eficacia Salidas</h4><div class="val" id="kpiPctSalida" style="color:#8b5cf6;">0%</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card" id="capturaChartSup">
+        <div class="card-header-flex">
+          <h3>📊 Registros por Grupo de Supervisor</h3>
+          <button class="btn-copy-img" title="Copiar reporte" onclick="copiarElementoComoImagen('capturaChartSup', this)">
+            <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          </button>
+        </div>
+        <div class="chart-container"><canvas id="chartSupervisor"></canvas></div>
+      </div>
+      <div class="chart-card" id="capturaChartTime">
+        <div class="card-header-flex">
+          <h3>📈 Línea de Tiempo de Marcaciones</h3>
+          <button class="btn-copy-img" title="Copiar reporte" onclick="copiarElementoComoImagen('capturaChartTime', this)">
+            <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          </button>
+        </div>
+        <div class="chart-container"><canvas id="chartTimeline"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card-table" id="capturaTablaSup">
+      <div class="card-header-flex">
+        <h3>📊 Estadísticas por Grupo de Supervisor</h3>
+        <button class="btn-copy-img" title="Copiar reporte" onclick="copiarElementoComoImagen('capturaTablaSup', this)">
+          <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+        </button>
+      </div>
+      <table>
+        <thead><tr><th>Supervisor / Grupo</th><th>Vendedores</th><th>Entradas (Reg / Pend)</th><th>Salidas (Reg / Pend)</th><th>% Efectividad Entradas</th><th>% Efectividad Salidas</th></tr></thead>
+        <tbody id="tablaSupervisores"><tr><td colspan="6" style="text-align:center;">Cargando estadísticas...</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card-table" id="capturaTablaDetalle">
+      <div class="card-header-flex">
+        <h3>📋 Detalle de Asistencia por Vendedor</h3>
+        <button class="btn-copy-img" title="Copiar reporte" onclick="copiarElementoComoImagen('capturaTablaDetalle', this)">
+          <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+        </button>
+      </div>
+      <table>
+        <thead><tr><th>Código</th><th>Nombre Vendedor</th><th>Supervisor / Grupo</th><th>Entrada (Mañana)</th><th>Salida (Tarde)</th><th>Efectividad</th></tr></thead>
+        <tbody id="tablaCuerpo"><tr><td colspan="6" style="text-align:center;">Cargando registros...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="modalVisor" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span id="modalTitulo">Vista Previa</span>
+      <button class="close-btn" onclick="cerrarModal()">Cerrar</button>
+    </div>
+    <div class="modal-body" id="modalContenido"></div>
+  </div>
+</div>
+
+<script>
+  let usuarioActual = null;
+  let detalleData = [];
+  let chartSupInstance = null;
+  let chartTimelineInstance = null;
+
+  const ICONO_PAPELES = `<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>`;
+
+  async function copiarElementoComoImagen(elementId, btnElement) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    btnElement.innerHTML = "⏳";
+    btnElement.disabled = true;
+    try {
+      const btnsInternos = el.querySelectorAll('.btn-copy-img, .actions');
+      btnsInternos.forEach(b => b.style.visibility = 'hidden');
+      const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+      btnsInternos.forEach(b => b.style.visibility = 'visible');
+      canvas.toBlob(async (blob) => {
+        if (!blob) { alert("No se pudo generar la imagen."); btnElement.innerHTML = ICONO_PAPELES; btnElement.disabled = false; return; }
+        try {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          btnElement.innerHTML = "✅";
+          btnElement.style.background = "#10b981";
+          setTimeout(() => { btnElement.innerHTML = ICONO_PAPELES; btnElement.style.background = "#0284c7"; btnElement.disabled = false; }, 2000);
+        } catch (err) {
+          alert("Tu navegador no soporta la copia directa. Se descargará la imagen.");
+          const link = document.createElement('a');
+          link.download = `reporte_${elementId}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          btnElement.innerHTML = ICONO_PAPELES;
+          btnElement.disabled = false;
+        }
+      }, 'image/png');
+    } catch (e) {
+      alert("Error al capturar la imagen.");
+      btnElement.innerHTML = ICONO_PAPELES;
+      btnElement.disabled = false;
+    }
+  }
+
+  function obtenerCodigoSupervisor(textoSupervisor) {
+    if (!textoSupervisor) return 'S/C';
+    const trimmed = String(textoSupervisor).trim();
+    if (trimmed.toUpperCase() === 'SIN SUPERVISOR') return 'SIN SUP';
+    const partes = trimmed.split(' ');
+    return partes[0] || trimmed;
+  }
+
+  function obtenerFechaSeleccionada() {
+    const anoSel = document.getElementById('filterAno').value;
+    const mesSel = document.getElementById('filterMes').value;
+    const diaSel = document.getElementById('filterDia').value;
+    if (anoSel !== 'TODOS' && mesSel !== 'TODOS' && diaSel !== 'TODOS') {
+      return `${anoSel}-${String(parseInt(mesSel) + 1).padStart(2, '0')}-${String(diaSel).padStart(2, '0')}`;
+    }
+    return new Date().toISOString().split('T')[0];
+  }
+
+  function verificarSesion() {
+    const userSesion = localStorage.getItem('userControlAsistencia');
+    if (userSesion) {
+      usuarioActual = JSON.parse(userSesion);
+      document.getElementById('vistaLogin').style.display = 'none';
+      document.getElementById('panelAdmin').style.display = 'block';
+      document.getElementById('userInfo').innerText = `Usuario: ${usuarioActual.usuario} | Rol: ${usuarioActual.rol} | Asignación: ${usuarioActual.supervisorAsignado || 'TODOS'}`;
+      poblarDiasDelMes();
+      poblarAnos();
+      cargarTodo();
+    } else {
+      document.getElementById('vistaLogin').style.display = 'flex';
+      document.getElementById('panelAdmin').style.display = 'none';
+    }
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnIngresar');
+    const msgError = document.getElementById('msgError');
+    btn.disabled = true;
+    btn.innerText = "Verificando...";
+    msgError.style.display = "none";
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          usuario: document.getElementById('usuario').value.trim(),
+          clave: document.getElementById('clave').value.trim()
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem('userControlAsistencia', JSON.stringify({
+          usuario: data.usuario, rol: data.rol, supervisorAsignado: data.supervisorAsignado || "TODOS"
+        }));
+        verificarSesion();
+      } else {
+        msgError.innerText = data.message || "Usuario o clave incorrectos.";
+        msgError.style.display = "block";
+      }
+    } catch (err) {
+      alert("Error de conexión al servidor.");
+    } finally {
+      btn.disabled = false;
+      btn.innerText = "Ingresar al Panel";
+    }
+  });
+
+  function cerrarSesion() {
+    localStorage.removeItem('userControlAsistencia');
+    location.reload();
+  }
+
+  function formatearHora(fechaStr) {
+    if (!fechaStr) return '';
+    const d = new Date(fechaStr);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+  }
+
+  function poblarDiasDelMes() {
+    const selectDia = document.getElementById('filterDia');
+    selectDia.innerHTML = '<option value="TODOS">-- Todos los Días --</option>';
+    for (let i = 1; i <= 31; i++) {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = i;
+      selectDia.appendChild(opt);
+    }
+  }
+
+  function poblarAnos() {
+    const selectAno = document.getElementById('filterAno');
+    const hoyAno = new Date().getFullYear();
+    selectAno.innerHTML = '<option value="TODOS">-- Todos los Años --</option>';
+    for (let a = hoyAno; a >= hoyAno - 3; a--) {
+      const opt = document.createElement('option');
+      opt.value = a;
+      opt.textContent = a;
+      selectAno.appendChild(opt);
+    }
+    selectAno.value = hoyAno;
+  }
+
+  function limpiarFiltros() {
+    document.getElementById('filterTexto').value = '';
+    document.getElementById('filterSupervisor').value = 'TODOS';
+    document.getElementById('filterEstado').value = 'TODOS';
+    document.getElementById('filterAno').value = new Date().getFullYear().toString();
+    document.getElementById('filterMes').value = new Date().getMonth().toString();
+    document.getElementById('filterDia').value = new Date().getDate().toString();
+    document.getElementById('filterDiaSemana').value = 'TODOS';
+    aplicarFiltros();
+  }
+
+  async function cargarTodo() {
+    const tbody = document.getElementById('tablaCuerpo');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Actualizando información...</td></tr>';
+    await aplicarFiltros();
+  }
+
+  async function aplicarFiltros() {
+    const texto = document.getElementById('filterTexto').value.trim();
+    const supSel = document.getElementById('filterSupervisor').value;
+    const estSel = document.getElementById('filterEstado').value;
+    const fecha = obtenerFechaSeleccionada();
+    const diaSemanaSel = document.getElementById('filterDiaSemana').value;
+
+    let supervisorParam = supSel;
+    if (usuarioActual && usuarioActual.rol !== 'ADMIN' && usuarioActual.supervisorAsignado && usuarioActual.supervisorAsignado !== 'TODOS') {
+      supervisorParam = usuarioActual.supervisorAsignado;
+    }
+
+    const tbody = document.getElementById('tablaCuerpo');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Cargando datos...</td></tr>';
+
+    try {
+      const params = new URLSearchParams({ fecha, supervisor: supervisorParam, texto, estado: estSel });
+      const [resDet, resDash] = await Promise.all([
+        fetch(`/api/registros/detalle?${params}`),
+        fetch(`/api/registros/dashboard?fecha=${fecha}&supervisor=${supervisorParam}`)
+      ]);
+
+      const detData = await resDet.json();
+      const dashData = await resDash.json();
+
+      if (!detData.success || !dashData.success) {
+        throw new Error('Error en respuesta del servidor');
+      }
+
+      detalleData = detData.data;
+
+      let filtered = detalleData;
+      if (diaSemanaSel !== 'TODOS' && fecha) {
+        const d = new Date(fecha + 'T12:00:00');
+        if (d.getDay() !== parseInt(diaSemanaSel)) {
+          filtered = [];
+        }
+      }
+
+      const kpi = dashData.data.kpi;
+      document.getElementById('kpiTotal').innerText = kpi.totalVendedores;
+      document.getElementById('kpiEntradasReg').innerText = kpi.entradasReg;
+      document.getElementById('kpiEntradasPend').innerText = kpi.entradasPend;
+      document.getElementById('kpiSalidasReg').innerText = kpi.salidasReg;
+      document.getElementById('kpiSalidasPend').innerText = kpi.salidasPend;
+      document.getElementById('kpiPctEntrada').innerText = kpi.pctEntrada + '%';
+      document.getElementById('kpiPctSalida').innerText = kpi.pctSalida + '%';
+
+      renderizarTablaDetalle(filtered);
+      renderizarTablaSupervisores(dashData.data.supervisores);
+
+      const resGraf = await fetch(`/api/registros/graficos?fecha=${fecha}`);
+      const grafData = await resGraf.json();
+      if (grafData.success) {
+        renderizarGraficos(grafData.data);
+      }
+
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Error al cargar datos del servidor.</td></tr>';
+    }
+  }
+
+  function renderizarTablaDetalle(items) {
+    const tbody = document.getElementById('tablaCuerpo');
+    tbody.innerHTML = '';
+    if (items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No se encontraron registros con los filtros seleccionados.</td></tr>';
+      return;
+    }
+    items.forEach(r => {
+      const pct = r.efectividad;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${r.codigo}</strong></td>
+        <td>${r.nombre}</td>
+        <td>${r.supervisor || '-'}</td>
+        <td>${generarHtmlEstado(r.entrada)}</td>
+        <td>${generarHtmlEstado(r.salida)}</td>
+        <td><span class="badge-pct ${obtenerClaseBadgePct(pct)}">${pct}%</span></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderizarGraficos(grafData) {
+    const supervisores = grafData.supervisores || [];
+    const supNombres = supervisores.map(s => obtenerCodigoSupervisor(s.supervisor));
+    const supTotal = supervisores.map(s => s.total);
+    const supEnt = supervisores.map(s => s.entradasReg);
+    const supSal = supervisores.map(s => s.salidasReg);
+
+    const ctxSup = document.getElementById('chartSupervisor').getContext('2d');
+    if (chartSupInstance) chartSupInstance.destroy();
+    chartSupInstance = new Chart(ctxSup, {
+      type: 'bar',
+      data: {
+        labels: supNombres,
+        datasets: [
+          { label: 'Total Vendedores', data: supTotal, backgroundColor: '#64748b' },
+          { label: 'Entradas Registradas', data: supEnt, backgroundColor: '#16a34a' },
+          { label: 'Salidas Registradas', data: supSal, backgroundColor: '#2563eb' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        categoryPercentage: 0.55, barPercentage: 0.85,
+        plugins: {
+          legend: { position: 'top' },
+          tooltip: { callbacks: { title: function(ctx) { return supervisores[ctx[0].dataIndex]?.supervisor || ''; } } }
+        },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, x: { ticks: { maxRotation: 0, font: { weight: 'bold' } } } }
+      }
+    });
+
+    const tl = grafData.timeline;
+    const ctxTimeline = document.getElementById('chartTimeline').getContext('2d');
+    if (chartTimelineInstance) chartTimelineInstance.destroy();
+    chartTimelineInstance = new Chart(ctxTimeline, {
+      type: 'line',
+      data: {
+        labels: tl ? tl.labels : [],
+        datasets: [
+          { label: 'Entradas por Hora', data: tl ? tl.entradas : [], borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,0.1)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#16a34a' },
+          { label: 'Salidas por Hora', data: tl ? tl.salidas : [], borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.1)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#2563eb' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, x: { title: { display: true, text: 'Hora del Día' } } }
+      }
+    });
+  }
+
+  function renderizarTablaSupervisores(supervisores) {
+    const tbodySup = document.getElementById('tablaSupervisores');
+    tbodySup.innerHTML = '';
+    if (!supervisores || supervisores.length === 0) {
+      tbodySup.innerHTML = '<tr><td colspan="6" style="text-align:center;">Sin datos de supervisores para los filtros actuales.</td></tr>';
+      return;
+    }
+    supervisores.forEach(s => {
+      const entPend = s.total - s.entradasReg;
+      const salPend = s.total - s.salidasReg;
+      const pctEnt = s.total > 0 ? Math.round((s.entradasReg / s.total) * 100) : 0;
+      const pctSal = s.total > 0 ? Math.round((s.salidasReg / s.total) * 100) : 0;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${s.supervisor}</strong></td>
+        <td>${s.total}</td>
+        <td><span style="color:#16a34a;font-weight:bold;">${s.entradasReg}</span> / <span style="color:#dc2626;">${entPend}</span></td>
+        <td><span style="color:#2563eb;font-weight:bold;">${s.salidasReg}</span> / <span style="color:#ea580c;">${salPend}</span></td>
+        <td><span class="badge-pct ${obtenerClaseBadgePct(pctEnt)}">${pctEnt}%</span></td>
+        <td><span class="badge-pct ${obtenerClaseBadgePct(pctSal)}">${pctSal}%</span></td>
+      `;
+      tbodySup.appendChild(tr);
+    });
+  }
+
+  function obtenerClaseBadgePct(pct) {
+    if (pct >= 80) return 'pct-alto';
+    if (pct >= 50) return 'pct-medio';
+    return 'pct-bajo';
+  }
+
+  function generarHtmlEstado(reg) {
+    if (!reg) {
+      return `<span class="badge-pend">PENDIENTE</span>`;
+    }
+    const hora = formatearHora(reg.fecha);
+    let html = `<div><span class="badge-reg">✓ REGISTRADO</span> <span class="hora">🕒 ${hora}</span></div>`;
+    html += `<div class="actions">`;
+    if (reg.foto) {
+      html += `<button onclick="verFoto('${reg.nombre || ''}', '${reg.foto}')" class="btn-act btn-foto">📸 Foto</button>`;
+    }
+    if (reg.latitud && reg.longitud) {
+      html += `<button onclick="verMapa('${reg.nombre || ''}', '${reg.latitud}', '${reg.longitud}')" class="btn-act btn-mapa">📍 Mapa</button>`;
+    }
+    if (reg.comentario && reg.comentario.trim() !== "") {
+      const comLimpio = reg.comentario.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      html += `<button onclick="verComentario('${reg.nombre || ''}', '${comLimpio}')" class="btn-act btn-obs">💬 Obs</button>`;
+    }
+    html += `</div>`;
+    return html;
+  }
+
+  function verFoto(nombre, urlFoto) {
+    document.getElementById('modalTitulo').innerText = `Foto de: ${nombre}`;
+    let contenidoHtml = "";
+    if (urlFoto.includes("drive.google.com")) {
+      let previewUrl = urlFoto;
+      if (urlFoto.includes("/file/d/")) {
+        const fileId = urlFoto.split('/file/d/')[1].split('/')[0];
+        previewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
+      } else if (urlFoto.includes("id=")) {
+        const fileId = urlFoto.split('id=')[1].split('&')[0];
+        previewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
+      }
+      contenidoHtml = `<iframe src="${previewUrl}" style="width:100%;height:450px;border:none;border-radius:8px;"></iframe><div style="margin-top:10px;"><a href="${urlFoto}" target="_blank" style="color:#e85d04;font-weight:bold;font-size:12px;text-decoration:underline;">🔗 Abrir foto en pestaña nueva</a></div>`;
+    } else {
+      contenidoHtml = `<img src="${urlFoto}" alt="Foto de registro" style="max-width:100%;max-height:70vh;border-radius:8px;">`;
+    }
+    document.getElementById('modalContenido').innerHTML = contenidoHtml;
+    document.getElementById('modalVisor').style.display = 'flex';
+  }
+
+  function verMapa(nombre, lat, lng) {
+    document.getElementById('modalTitulo').innerText = `Ubicación de: ${nombre}`;
+    document.getElementById('modalContenido').innerHTML = `<iframe src="https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed" style="width:100%;height:400px;border:none;border-radius:8px;"></iframe>`;
+    document.getElementById('modalVisor').style.display = 'flex';
+  }
+
+  function verComentario(nombre, comentario) {
+    document.getElementById('modalTitulo').innerText = `Observación de: ${nombre}`;
+    document.getElementById('modalContenido').innerHTML = `<div style="background:#f8fafc;padding:15px;border-radius:8px;text-align:left;white-space:pre-wrap;">${comentario}</div>`;
+    document.getElementById('modalVisor').style.display = 'flex';
+  }
+
+  function cerrarModal() {
+    document.getElementById('modalVisor').style.display = 'none';
+    document.getElementById('modalContenido').innerHTML = '';
+  }
+
+  window.onload = function() { verificarSesion(); };
+</script>
+</body>
+</html>
