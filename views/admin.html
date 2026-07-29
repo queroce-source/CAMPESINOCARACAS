@@ -489,47 +489,71 @@
     });
   }
 
-  /* --- Pipeline principal: fetch → filtrar → renderizar --- */
-  async function actualizarFiltros() {
+  /* --- Cache localStorage --- */
+  const CACHE_KEY = 'dashboard_data_cache';
+
+  function guardarCache(data) {
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+    } catch (e) { /* ignorar */ }
+  }
+
+  function cargarCache() {
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  function limpiarCache() {
+    localStorage.removeItem(CACHE_KEY);
+  }
+
+  /* --- Render desde cache (sin fetch) --- */
+  function renderDesdeCache() {
+    if (!allData || allData.length === 0) {
+      document.getElementById('tablaCuerpo').innerHTML = '<tr><td colspan="6" style="text-align:center;">Sin datos. Presiona "Actualizar".</td></tr>';
+      return;
+    }
+    const filtered = getFilteredData();
+    const kpi = computeKPI(filtered);
+    const supervisores = computeSupervisores(filtered);
+    const timeline = computeTimeline(filtered);
+    renderKPIs(kpi);
+    renderTablaDetalle(filtered);
+    renderSupervisores(supervisores);
+    renderCharts(supervisores, timeline);
+  }
+
+  /* --- Fetch único desde backend (login o refresh) --- */
+  async function fetchAllData() {
     const rango = obtenerRangoFecha();
     let sup = filters.supervisor;
     if (usuarioActual && usuarioActual.rol !== 'ADMIN' && usuarioActual.supervisorAsignado && usuarioActual.supervisorAsignado !== 'TODOS') {
       sup = usuarioActual.supervisorAsignado;
     }
-
     document.getElementById('tablaCuerpo').innerHTML = '<tr><td colspan="6" style="text-align:center;">Cargando datos...</td></tr>';
-
     try {
-      const params = new URLSearchParams({ fechaInicio: rango.inicio, fechaFin: rango.fin, supervisor: sup, texto: filters.texto });
-      console.log('[DEBUG] Consultando rango:', rango.inicio, '→', rango.fin, '| supervisor:', sup, '| texto:', filters.texto);
+      const params = new URLSearchParams({ fechaInicio: rango.inicio, fechaFin: rango.fin, supervisor: sup, texto: '' });
+      console.log('[DEBUG] Fetch único rango:', rango.inicio, '→', rango.fin, '| supervisor:', sup);
       const res = await fetch(`/api/registros/detalle?${params}`);
       const json = await res.json();
       if (!json.success) throw new Error('Error del servidor');
-
       allData = json.data;
-      console.log('[DEBUG] Vendedores recibidos:', allData.length);
       const conEntrada = allData.filter(i => i.entrada).length;
       const conSalida = allData.filter(i => i.salida).length;
-      console.log('[DEBUG] Con entrada:', conEntrada, '| Con salida:', conSalida);
+      console.log('[DEBUG] Vendedores:', allData.length, '| Con entrada:', conEntrada, '| Con salida:', conSalida);
       if (allData.length > 0 && conEntrada === 0 && conSalida === 0) {
-        console.warn('[DEBUG] ⚠ POSIBLE BUG: 0 registros con entrada/salida — revisar formato fecha en Firestore');
+        console.warn('[DEBUG] ⚠ POSIBLE BUG: 0 registros con entrada/salida');
       }
-
-      const filtered = getFilteredData();
-      const kpi = computeKPI(filtered);
-      const supervisores = computeSupervisores(filtered);
-      const timeline = computeTimeline(filtered);
-
-      renderKPIs(kpi);
-      renderTablaDetalle(filtered);
-      renderSupervisores(supervisores);
-      renderCharts(supervisores, timeline);
+      guardarCache(allData);
+      renderDesdeCache();
     } catch (e) {
       document.getElementById('tablaCuerpo').innerHTML = '<tr><td colspan="6" style="text-align:center;color:red;">Error al cargar datos del servidor.</td></tr>';
     }
   }
 
-  /* --- Sincronizar estado DOM → filters y disparar pipeline --- */
+  /* --- Sincronizar estado DOM → filters y renderizar desde cache --- */
   function syncFilters() {
     filters.texto = document.getElementById('filterTexto').value.trim();
     filters.supervisor = document.getElementById('filterSupervisor').value;
@@ -538,7 +562,7 @@
     filters.mes = document.getElementById('filterMes').value;
     filters.dia = document.getElementById('filterDia').value;
     filters.diaSemana = document.getElementById('filterDiaSemana').value;
-    actualizarFiltros();
+    renderDesdeCache();
   }
 
   function limpiarFiltros() {
@@ -555,7 +579,7 @@
 
   async function cargarTodo() {
     document.getElementById('tablaCuerpo').innerHTML = '<tr><td colspan="6" style="text-align:center;">Actualizando información...</td></tr>';
-    syncFilters();
+    await fetchAllData();
   }
 
   /* --- Eventos reactivos --- */
@@ -656,11 +680,23 @@
       document.getElementById('filterMes').value = hoy.getMonth().toString();
       document.getElementById('filterDia').value = hoy.getDate().toString();
       bindFilterEvents();
-      fetch('/api/vendedores')
-        .then(r => r.json())
-        .then(j => { if (j.success) poblarSupervisores(j.data); })
-        .catch(() => {})
-        .finally(() => cargarTodo());
+      const cache = cargarCache();
+      if (cache && cache.length > 0) {
+        allData = cache;
+        console.log('[DEBUG] Usando cache local:', allData.length, 'vendedores');
+        fetch('/api/vendedores')
+          .then(r => r.json())
+          .then(j => { if (j.success) poblarSupervisores(j.data); })
+          .catch(() => {});
+        renderDesdeCache();
+        fetchAllData();
+      } else {
+        fetch('/api/vendedores')
+          .then(r => r.json())
+          .then(j => { if (j.success) poblarSupervisores(j.data); })
+          .catch(() => {})
+          .finally(() => fetchAllData());
+      }
     } else {
       document.getElementById('vistaLogin').style.display = 'flex';
       document.getElementById('panelAdmin').style.display = 'none';
@@ -703,6 +739,8 @@
 
   function cerrarSesion() {
     localStorage.removeItem('userControlAsistencia');
+    limpiarCache();
+    allData = [];
     location.reload();
   }
 
