@@ -4,3 +4,5 @@ asistencia.db
 uploads/*
 !uploads/.gitkeep
 *.log
+
+datos.csv
