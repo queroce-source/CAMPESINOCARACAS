@@ -514,19 +514,26 @@
     });
   }
 
-  /* --- Cache localStorage (vendedores + registros) --- */
+  const CACHE_TTL = 300000; // 5 min
+
+  /* --- Cache localStorage con timestamp y expiración --- */
   function guardarCache(data) {
     try {
-      if (data.vendedores) localStorage.setItem('cache_vendedores', JSON.stringify(data.vendedores));
-      if (data.registros) localStorage.setItem('cache_registros', JSON.stringify(data.registros));
+      if (data.vendedores) localStorage.setItem('cache_vendedores', JSON.stringify({ t: Date.now(), d: data.vendedores }));
+      if (data.registros) localStorage.setItem('cache_registros', JSON.stringify({ t: Date.now(), d: data.registros }));
     } catch (e) { /* ignorar */ }
   }
 
   function cargarCache() {
     try {
-      const v = localStorage.getItem('cache_vendedores');
-      const r = localStorage.getItem('cache_registros');
-      if (v && r) return { vendedores: JSON.parse(v), registros: JSON.parse(r) };
+      const rawV = localStorage.getItem('cache_vendedores');
+      const rawR = localStorage.getItem('cache_registros');
+      if (!rawV || !rawR) return null;
+      const v = JSON.parse(rawV);
+      const r = JSON.parse(rawR);
+      if (Date.now() - (v.t || 0) > CACHE_TTL) return null;
+      if (Date.now() - (r.t || 0) > CACHE_TTL) return null;
+      return { vendedores: v.d, registros: r.d };
     } catch (e) {}
     return null;
   }
@@ -707,10 +714,9 @@
       if (cache && cache.vendedores && cache.vendedores.length > 0) {
         allVendedores = cache.vendedores;
         allRegistros = cache.registros || [];
-        console.log('[DEBUG] Cache local — vendedores:', allVendedores.length, 'registros:', allRegistros.length);
+        console.log('[DEBUG] Cache local — vendedores:', allVendedores.length, 'registros:', allRegistros.length, '(sin fetch al servidor)');
         poblarSupervisores(allVendedores);
         renderDesdeCache();
-        fetchAllData();
       } else {
         fetch('/api/vendedores')
           .then(r => r.json())

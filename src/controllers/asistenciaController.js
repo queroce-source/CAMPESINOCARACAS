@@ -1,13 +1,16 @@
 const VendedorModel = require('../models/VendedorModel');
 const RegistroModel = require('../models/RegistroModel');
 const UsuarioModel = require('../models/UsuarioModel');
+const cache = require('../config/cache');
 
 exports.getVendedores = async (req, res) => {
   try {
     const { q } = req.query;
-    const vendedores = q
-      ? await VendedorModel.search(q)
-      : await VendedorModel.getAll();
+    if (q) {
+      const vendedores = await VendedorModel.search(q);
+      return res.json({ success: true, data: vendedores });
+    }
+    const vendedores = await cache.get('all_vendedores', 300000, () => VendedorModel.getAll());
     res.json({ success: true, data: vendedores });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -166,6 +169,8 @@ exports.crearRegistro = async (req, res) => {
       fecha: fechaDispositivo
     });
 
+    cache.invalidate('all_registros');
+
     res.json({ success: true, id: result.id });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -174,7 +179,7 @@ exports.crearRegistro = async (req, res) => {
 
 exports.getAllRegistros = async (req, res) => {
   try {
-    const registros = await RegistroModel.getAll();
+    const registros = await cache.get('all_registros', 60000, () => RegistroModel.getAll());
     res.json({ success: true, data: registros });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
