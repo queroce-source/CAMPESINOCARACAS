@@ -31,15 +31,19 @@ async function seedDatabase() {
   }
 
   const usuarios = [
-    ['ADMIN', 'admin123', 'ADMIN', 'TODOS'],
-    ['MARIA LOPEZ', 'maria123', 'SUPERVISOR', 'MARIA LOPEZ'],
-    ['CARLOS MENDOZA', 'carlos123', 'SUPERVISOR', 'CARLOS MENDOZA'],
-    ['ANA PATIÑO', 'ana123', 'SUPERVISOR', 'ANA PATIÑO'],
+    { usuario: 'HEIBER CHACON', clave: '30052150', rol: 'ADMIN', supervisorAsignado: 'TODOS' },
+    { usuario: 'JULIO BRICEÑO', clave: 'BB12345*', rol: 'SUPERVISOR', supervisorAsignado: 'BS5 JULIO BRICEÑO' },
+    { usuario: 'INGRI FERNANDEZ', clave: 'BB12345*', rol: 'SUPERVISOR', supervisorAsignado: 'BS8 INGRID FERNANDES' },
+    { usuario: 'ROBERT PAREDES', clave: 'BB12345*', rol: 'SUPERVISOR', supervisorAsignado: 'BS0 ROBERT PAREDES' },
+    { usuario: 'LUIS MANRIQUE', clave: 'BB12345*', rol: 'SUPERVISOR', supervisorAsignado: 'BS1 LUIS EDUARDO MANRIQUE' },
+    { usuario: 'MAKIEL CARBALLO', clave: 'BB12345*', rol: 'SUPERVISOR', supervisorAsignado: 'BS6 MAKIEL CARBALLO' },
+    { usuario: 'OSCAR PUENTES', clave: 'BB12345*', rol: 'SUPERVISOR', supervisorAsignado: 'BS4 OSCAR PUENTES' },
+    { usuario: 'FRANK ESCORCHA', clave: 'BB12345*', rol: 'SUPERVISOR', supervisorAsignado: 'BS3 FRANK RICARDO ESCORCHA' },
+    { usuario: 'JOUSSEF GUTIERREZ', clave: 'BB12345*', rol: 'SUPERVISOR', supervisorAsignado: 'BS9 JOUSEF GUTIERREZ' },
+    { usuario: 'CARLOS OMAR QUERO', clave: 'GERENTE', rol: 'ADMIN', supervisorAsignado: 'TODOS' },
   ];
   for (const u of usuarios) {
-    await db.collection('usuarios').doc(u[0]).set({
-      usuario: u[0], clave: u[1], rol: u[2], supervisorAsignado: u[3],
-    });
+    await db.collection('usuarios').doc(u.usuario).set(u);
   }
 
   const hoy = new Date().toISOString().split('T')[0];
