@@ -56,7 +56,7 @@
       <input type="text" id="nombreVendedor" readonly placeholder="Aparecerá automáticamente">
     </div>
     <div class="form-group">
-      <label for="comentario">Observación / Comentario (Opcional):</label>
+      <label for="comentario">Observación / Comentario <span id="lblComentarioReq" style="color:#dc2626;font-weight:bold;">(Obligatorio para Salida)</span>:</label>
       <textarea id="comentario" rows="3" placeholder="Escribe alguna novedad u observación aquí..."></textarea>
     </div>
     <div class="form-group">
@@ -95,8 +95,14 @@
 
   function definirTipoRegistro() {
     const hora = new Date().getHours();
-    const campoTipo = document.getElementById('tipoRegistro');
-    campoTipo.value = hora < 13 ? "ENTRADA (Mañana)" : "SALIDA (Tarde)";
+    const tipo = hora < 13 ? "ENTRADA (Mañana)" : "SALIDA (Tarde)";
+    document.getElementById('tipoRegistro').value = tipo;
+    const lbl = document.getElementById('lblComentarioReq');
+    if (tipo.includes('SALIDA')) {
+      lbl.style.display = 'inline';
+    } else {
+      lbl.style.display = 'none';
+    }
   }
 
   function obtenerUbicacion() {
@@ -250,6 +256,11 @@
     }
     if (!fotoBase64Capturada) {
       alert("Debes tomar una foto en vivo con la cámara.");
+      return;
+    }
+    if (tipo.includes('SALIDA') && !comentario.trim()) {
+      alert("Debe ingresar una observación o comentario para registrar la salida.");
+      document.getElementById('comentario').focus();
       return;
     }
 
