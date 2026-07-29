@@ -220,6 +220,8 @@
   /* --- Estado global de filtros --- */
   const filters = { texto: '', supervisor: 'TODOS', estado: 'TODOS', anio: 'TODOS', mes: 'TODOS', dia: 'TODOS', diaSemana: 'TODOS' };
   let allData = [];
+  let lastQueryKey = null;
+  let fetchCounter = 0;
 
   /* --- Utilidades --- */
   function obtenerCodigoSupervisor(textoSupervisor) {
@@ -298,6 +300,22 @@
         const salDia = item.salida ? diaDeLaSemana(item.salida.fecha) : -1;
         const diaNum = parseInt(filters.diaSemana, 10);
         if (entDia !== diaNum && salDia !== diaNum) return false;
+      }
+      const a = filters.anio, m = filters.mes, d = filters.dia;
+      if (a !== 'TODOS' || m !== 'TODOS' || d !== 'TODOS') {
+        const fechas = [];
+        if (item.entrada && item.entrada.fecha) fechas.push(item.entrada.fecha);
+        if (item.salida && item.salida.fecha) fechas.push(item.salida.fecha);
+        if (fechas.length === 0) return false;
+        const pasa = fechas.some(f => {
+          const p = f.match(/^(\d{4})-(\d{2})-(\d{2})/);
+          if (!p) return false;
+          if (a !== 'TODOS' && p[1] !== a) return false;
+          if (m !== 'TODOS' && parseInt(p[2], 10) !== parseInt(m, 10) + 1) return false;
+          if (d !== 'TODOS' && parseInt(p[3], 10) !== parseInt(d, 10)) return false;
+          return true;
+        });
+        if (!pasa) return false;
       }
       return true;
     });
@@ -532,6 +550,8 @@
     if (usuarioActual && usuarioActual.rol !== 'ADMIN' && usuarioActual.supervisorAsignado && usuarioActual.supervisorAsignado !== 'TODOS') {
       sup = usuarioActual.supervisorAsignado;
     }
+    lastQueryKey = `${rango.inicio}|${rango.fin}|${sup}`;
+    const currentFetch = ++fetchCounter;
     document.getElementById('tablaCuerpo').innerHTML = '<tr><td colspan="6" style="text-align:center;">Cargando datos...</td></tr>';
     try {
       const params = new URLSearchParams({ fechaInicio: rango.inicio, fechaFin: rango.fin, supervisor: sup, texto: '' });
@@ -539,6 +559,7 @@
       const res = await fetch(`/api/registros/detalle?${params}`);
       const json = await res.json();
       if (!json.success) throw new Error('Error del servidor');
+      if (currentFetch !== fetchCounter) return;
       allData = json.data;
       const conEntrada = allData.filter(i => i.entrada).length;
       const conSalida = allData.filter(i => i.salida).length;
@@ -553,7 +574,7 @@
     }
   }
 
-  /* --- Sincronizar estado DOM → filters y renderizar desde cache --- */
+  /* --- Sincronizar estado DOM → filters y renderizar desde cache o fetch --- */
   function syncFilters() {
     filters.texto = document.getElementById('filterTexto').value.trim();
     filters.supervisor = document.getElementById('filterSupervisor').value;
@@ -562,7 +583,18 @@
     filters.mes = document.getElementById('filterMes').value;
     filters.dia = document.getElementById('filterDia').value;
     filters.diaSemana = document.getElementById('filterDiaSemana').value;
-    renderDesdeCache();
+    const rango = obtenerRangoFecha();
+    let sup = filters.supervisor;
+    if (usuarioActual && usuarioActual.rol !== 'ADMIN' && usuarioActual.supervisorAsignado && usuarioActual.supervisorAsignado !== 'TODOS') {
+      sup = usuarioActual.supervisorAsignado;
+    }
+    const newKey = `${rango.inicio}|${rango.fin}|${sup}`;
+    if (newKey !== lastQueryKey) {
+      lastQueryKey = newKey;
+      fetchAllData();
+    } else {
+      renderDesdeCache();
+    }
   }
 
   function limpiarFiltros() {
