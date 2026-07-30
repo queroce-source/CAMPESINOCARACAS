@@ -6,14 +6,20 @@ class VendedorModel {
   static async getAll() {
     const snap = await db.collection(COLLECTION).get();
     const vendedores = [];
-    snap.forEach(doc => vendedores.push({ id: doc.id, ...doc.data() }));
+    snap.forEach(doc => {
+      const v = doc.data();
+      if (!/(^| )VACANTE/i.test(v.nombre || '')) vendedores.push(v);
+    });
     return vendedores;
   }
 
   static async getBySupervisor(supervisor) {
     const snap = await db.collection(COLLECTION).where('supervisor', '==', supervisor).get();
     const vendedores = [];
-    snap.forEach(doc => vendedores.push(doc.data()));
+    snap.forEach(doc => {
+      const v = doc.data();
+      if (!/(^| )VACANTE/i.test(v.nombre || '')) vendedores.push(v);
+    });
     return vendedores;
   }
 
