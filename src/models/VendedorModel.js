@@ -10,6 +10,13 @@ class VendedorModel {
     return vendedores;
   }
 
+  static async getBySupervisor(supervisor) {
+    const snap = await db.collection(COLLECTION).where('supervisor', '==', supervisor).get();
+    const vendedores = [];
+    snap.forEach(doc => vendedores.push(doc.data()));
+    return vendedores;
+  }
+
   static async search(q) {
     const snap = await db.collection(COLLECTION).get();
     const lower = q.toLowerCase();

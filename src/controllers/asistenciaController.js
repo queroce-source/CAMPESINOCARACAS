@@ -5,12 +5,15 @@ const cache = require('../config/cache');
 
 exports.getVendedores = async (req, res) => {
   try {
-    const { q } = req.query;
+    const { q, supervisor } = req.query;
     if (q) {
       const vendedores = await VendedorModel.search(q);
       return res.json({ success: true, data: vendedores });
     }
-    const vendedores = await cache.get('all_vendedores', 300000, () => VendedorModel.getAll());
+    const cacheKey = supervisor && supervisor !== 'TODOS' ? `vendedores_sup_${supervisor}` : 'all_vendedores';
+    const vendedores = await cache.get(cacheKey, 300000, () =>
+      supervisor && supervisor !== 'TODOS' ? VendedorModel.getBySupervisor(supervisor) : VendedorModel.getAll()
+    );
     res.json({ success: true, data: vendedores });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -179,7 +182,15 @@ exports.crearRegistro = async (req, res) => {
 
 exports.getAllRegistros = async (req, res) => {
   try {
-    const registros = await cache.get('all_registros', 60000, () => RegistroModel.getAll());
+    const { supervisor } = req.query;
+    let codigos = null;
+    let cacheKey = 'all_registros';
+    if (supervisor && supervisor !== 'TODOS') {
+      cacheKey = `registros_sup_${supervisor}`;
+      const vendedores = await cache.get(`vendedores_sup_${supervisor}`, 300000, () => VendedorModel.getBySupervisor(supervisor));
+      codigos = vendedores.map(v => v.codigo);
+    }
+    const registros = await cache.get(cacheKey, 60000, () => RegistroModel.getAll(codigos));
     res.json({ success: true, data: registros });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

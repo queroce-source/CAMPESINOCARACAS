@@ -516,18 +516,22 @@
 
   const CACHE_TTL = 300000; // 5 min
 
-  /* --- Cache localStorage con timestamp y expiración --- */
+  function _ck(suffix) {
+    return (usuarioActual ? usuarioActual.usuario + '_' : '') + suffix;
+  }
+
+  /* --- Cache localStorage con timestamp y expiración (por usuario) --- */
   function guardarCache(data) {
     try {
-      if (data.vendedores) localStorage.setItem('cache_vendedores', JSON.stringify({ t: Date.now(), d: data.vendedores }));
-      if (data.registros) localStorage.setItem('cache_registros', JSON.stringify({ t: Date.now(), d: data.registros }));
+      if (data.vendedores) localStorage.setItem(_ck('cache_vendedores'), JSON.stringify({ t: Date.now(), d: data.vendedores }));
+      if (data.registros) localStorage.setItem(_ck('cache_registros'), JSON.stringify({ t: Date.now(), d: data.registros }));
     } catch (e) { /* ignorar */ }
   }
 
   function cargarCache() {
     try {
-      const rawV = localStorage.getItem('cache_vendedores');
-      const rawR = localStorage.getItem('cache_registros');
+      const rawV = localStorage.getItem(_ck('cache_vendedores'));
+      const rawR = localStorage.getItem(_ck('cache_registros'));
       if (!rawV || !rawR) return null;
       const v = JSON.parse(rawV);
       const r = JSON.parse(rawR);
@@ -539,8 +543,8 @@
   }
 
   function limpiarCache() {
-    localStorage.removeItem('cache_vendedores');
-    localStorage.removeItem('cache_registros');
+    localStorage.removeItem(_ck('cache_vendedores'));
+    localStorage.removeItem(_ck('cache_registros'));
   }
 
   /* --- Render desde cache (sin fetch) --- */
@@ -563,9 +567,11 @@
   async function fetchAllData() {
     document.getElementById('tablaCuerpo').innerHTML = '<tr><td colspan="6" style="text-align:center;">Cargando datos...</td></tr>';
     try {
+      const supParam = (usuarioActual && usuarioActual.rol !== 'ADMIN' && usuarioActual.supervisorAsignado && usuarioActual.supervisorAsignado !== 'TODOS')
+        ? '?supervisor=' + encodeURIComponent(usuarioActual.supervisorAsignado) : '';
       const [resV, resR] = await Promise.all([
-        fetch('/api/vendedores'),
-        fetch('/api/registros/all'),
+        fetch('/api/vendedores' + supParam),
+        fetch('/api/registros/all' + supParam),
       ]);
       const jsonV = await resV.json();
       const jsonR = await resR.json();
@@ -592,6 +598,7 @@
     filters.diaSemana = document.getElementById('filterDiaSemana').value;
     if (usuarioActual && usuarioActual.rol !== 'ADMIN' && usuarioActual.supervisorAsignado && usuarioActual.supervisorAsignado !== 'TODOS') {
       filters.supervisor = usuarioActual.supervisorAsignado;
+      document.getElementById('filterSupervisor').value = usuarioActual.supervisorAsignado;
     }
     renderDesdeCache();
   }

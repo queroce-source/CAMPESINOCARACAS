@@ -112,7 +112,19 @@ class RegistroModel {
     return Object.values(hourMap);
   }
 
-  static async getAll() {
+  static async getAll(codigos) {
+    if (codigos && codigos.length > 0) {
+      const promises = codigos.map(codigo =>
+        db.collection(REGISTROS).where('codigo', '==', codigo).get()
+          .then(snap => {
+            const regs = [];
+            snap.forEach(doc => { const d = doc.data(); d.id = doc.id; regs.push(d); });
+            return regs;
+          })
+      );
+      const results = await Promise.all(promises);
+      return results.flat();
+    }
     const snap = await db.collection(REGISTROS).get();
     const registros = [];
     snap.forEach(doc => {
