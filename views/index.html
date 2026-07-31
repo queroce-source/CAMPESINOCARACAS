@@ -31,6 +31,7 @@
     .btn-foto:disabled { background: #94a3b8; cursor: not-allowed; }
     .foto-preview { width: 100%; border-radius: 6px; margin-top: 6px; display: none; }
     .foto-tomada { border: 2px solid #16a34a; border-radius: 8px; }
+    .msg-cam-error { color: var(--rojo); font-size: 12px; font-weight: bold; text-align: center; margin-top: 8px; display: none; }
   </style>
 </head>
 <body>
@@ -72,6 +73,9 @@
         <button type="button" id="btnTomarFoto" class="btn-foto" style="flex:1;">📸 Tomar Foto</button>
         <button type="button" id="btnCambiarCamara" class="btn-foto" style="flex:1;background:#64748b;">🔄 Cambiar</button>
       </div>
+      <button type="button" id="btnSubirFoto" class="btn-foto" style="margin-top:6px;background:#16a34a;">🖼️ Subir Foto (si la cámara falla)</button>
+      <input type="file" id="archivoFoto" accept="image/*" style="display:none;">
+      <div id="errorCamara" class="msg-cam-error">No se pudo acceder a la cámara. Verifica los permisos (usa HTTPS o permiso de cámara del navegador) o sube una foto desde la galería.</div>
     </div>
     <div id="msgGps" class="msg-gps">Obteniendo ubicación GPS...</div>
     <button type="submit" id="btnEnviar" class="btn-submit" disabled>Enviar Registro</button>
@@ -137,19 +141,27 @@
   }
 
   function iniciarCamara() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
     const video = document.getElementById('camaraVideo');
     const placeholder = document.getElementById('camaraPlaceholder');
+    const errorCam = document.getElementById('errorCamara');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      placeholder.innerText = 'Cámara no disponible en este dispositivo';
+      errorCam.style.display = 'block';
+      return;
+    }
     navigator.mediaDevices.getUserMedia({
       video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: false
     }).then(stream => {
       camaraStream = stream;
       video.srcObject = stream;
+      placeholder.style.display = 'none';
+      errorCam.style.display = 'none';
       video.style.display = 'block';
-      placeholder.innerText = 'video en vivo';
+      video.play().catch(() => {});
     }).catch(() => {
       placeholder.innerText = 'No se pudo acceder a la cámara';
+      errorCam.style.display = 'block';
     });
   }
 
@@ -158,13 +170,16 @@
       camaraStream.getTracks().forEach(t => t.stop());
       camaraStream = null;
     }
-    document.getElementById('camaraVideo').style.display = 'none';
+    const video = document.getElementById('camaraVideo');
+    video.style.display = 'none';
+    video.srcObject = null;
+    document.getElementById('camaraPlaceholder').style.display = 'block';
   }
 
   function tomarFoto() {
     const video = document.getElementById('camaraVideo');
-    if (!video.srcObject) {
-      alert("La cámara aún no está lista. Espera un momento.");
+    if (!video.srcObject || !video.videoWidth) {
+      alert("La cámara aún no está lista. Espera unos segundos o usa la opción 'Subir Foto'.");
       return;
     }
     const canvas = document.getElementById('camaraCanvas');
@@ -181,8 +196,32 @@
     preview.src = `data:image/jpeg;base64,${fotoBase64Capturada}`;
     preview.style.display = 'block';
     document.getElementById('camaraPlaceholder').style.display = 'none';
+    document.getElementById('indicadorCamara').innerText = '📷 Foto tomada con cámara';
     const btnEnviar = document.getElementById('btnEnviar');
     if (latitudUsuario) btnEnviar.disabled = false;
+  }
+
+  function subirFotoDesdeGaleria(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('El archivo seleccionado no es una imagen.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const dataUrl = e.target.result;
+      fotoBase64Capturada = dataUrl.split(',')[1];
+      const preview = document.getElementById('fotoPreview');
+      preview.src = dataUrl;
+      preview.style.display = 'block';
+      document.getElementById('camaraPlaceholder').style.display = 'none';
+      document.getElementById('indicadorCamara').innerText = '🖼️ Foto desde galería';
+      const btnEnviar = document.getElementById('btnEnviar');
+      if (latitudUsuario) btnEnviar.disabled = false;
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
   }
 
   function alternarCamara() {
@@ -237,6 +276,10 @@
 
   document.getElementById('btnTomarFoto').addEventListener('click', tomarFoto);
   document.getElementById('btnCambiarCamara').addEventListener('click', alternarCamara);
+  document.getElementById('btnSubirFoto').addEventListener('click', function() {
+    document.getElementById('archivoFoto').click();
+  });
+  document.getElementById('archivoFoto').addEventListener('change', subirFotoDesdeGaleria);
 
   document.getElementById('registroForm').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -251,7 +294,7 @@
       return;
     }
     if (!fotoBase64Capturada) {
-      alert("Debes tomar una foto con la cámara.");
+      alert("Debes tomar una foto o subir una desde la galería.");
       return;
     }
     if (!comentario.trim()) {
