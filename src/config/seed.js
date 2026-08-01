@@ -1,5 +1,6 @@
 require('./firebase');
 const { db } = require('./firebase');
+const { hashClave } = require('./security');
 
 async function clearCollection(name) {
   const snap = await db.collection(name).get();
@@ -93,7 +94,12 @@ async function seedDatabase() {
     { usuario: 'AMALOA PINEDA', clave: 'CEC2026*', rol: 'SUPERVISOR', supervisorAsignado: 'CS4 AMALOA PINEDA' },
   ];
   for (const u of usuarios) {
-    await db.collection('usuarios').doc(u.usuario).set(u);
+    await db.collection('usuarios').doc(u.usuario).set({
+      usuario: u.usuario,
+      claveHash: hashClave(u.clave),
+      rol: u.rol,
+      supervisorAsignado: u.supervisorAsignado
+    });
   }
   console.log(`  ${usuarios.length} usuarios insertados`);
 

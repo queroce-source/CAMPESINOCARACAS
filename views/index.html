@@ -13,12 +13,12 @@
     h2 { color: var(--azul-marino); margin-top: 5px; margin-bottom: 20px; font-size: 20px; text-align: center; font-weight: 700; }
     .form-group { margin-bottom: 16px; position: relative; }
     label { font-weight: 600; font-size: 13px; color: var(--azul-marino); margin-bottom: 6px; display: block; }
-    input[type="text"], textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--borde-input); border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; }
-    input[type="text"]:focus, textarea:focus { border-color: var(--naranja); }
+    input[type="text"], textarea, select { width: 100%; padding: 10px 12px; border: 1px solid var(--borde-input); border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; }
+    input[type="text"]:focus, textarea:focus, select:focus { border-color: var(--naranja); }
     input[readonly] { background-color: #e2e8f0; color: #475569; font-weight: bold; cursor: not-allowed; }
     .dropdown-list { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--borde-input); border-radius: 0 0 6px 6px; max-height: 180px; overflow-y: auto; z-index: 1000; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
     .dropdown-item { padding: 10px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
-    .dropdown-item:hover { background-color: var(--naranja); color: white; }
+    .dropdown-item:hover, .dropdown-item.activo { background-color: var(--naranja); color: white; }
     .btn-submit { width: 100%; background: var(--naranja); color: white; border: none; padding: 12px; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
     .btn-submit:hover { background: var(--naranja-hover); }
     .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; }
@@ -32,6 +32,43 @@
     .foto-preview { width: 100%; border-radius: 6px; margin-top: 6px; display: none; }
     .foto-tomada { border: 2px solid #16a34a; border-radius: 8px; }
     .msg-cam-error { color: var(--rojo); font-size: 12px; font-weight: bold; text-align: center; margin-top: 8px; display: none; }
+    .hora-servidor { font-size: 11px; color: #64748b; margin-top: 4px; }
+    .estado-offline { font-size: 12px; font-weight: bold; text-align: center; margin-top: 8px; padding: 8px; border-radius: 6px; display: none; }
+    .estado-offline.sin-red { background: #fef3c7; color: #92400e; }
+    .estado-offline.ok { background: #dcfce7; color: #15803d; }
+    .selector-camara { margin-top: 6px; }
+    /* ===== SISTEMA DE NOTIFICACIONES (toasts, shake, overlay) ===== */
+    .toast-container { position: fixed; top: 12px; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 9999; pointer-events: none; padding: 0 12px; }
+    .toast { pointer-events: auto; position: relative; width: 100%; max-width: 420px; display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; color: #fff; font-size: 14px; font-weight: 500; line-height: 1.4; background-color: #334155; opacity: 1 !important; border: 1px solid rgba(255,255,255,.25); box-shadow: 0 12px 32px rgba(0,0,0,.35); overflow: hidden; animation: toast-in .35s cubic-bezier(.21,1.02,.73,1) forwards; }
+    .toast.saliendo { animation: toast-out .3s ease forwards; }
+    .toast-error { background-color: #dc2626; background-image: linear-gradient(135deg,#ef4444,#b91c1c); border-color: #7f1d1d; }
+    .toast-warning { background-color: #d97706; background-image: linear-gradient(135deg,#fbbf24,#d97706); color: #451a03; border-color: #92400e; }
+    .toast-success { background-color: #16a34a; background-image: linear-gradient(135deg,#22c55e,#15803d); border-color: #14532d; }
+    .toast-info { background-color: #2563eb; background-image: linear-gradient(135deg,#3b82f6,#1d4ed8); border-color: #1e3a8a; }
+    .toast-icon { flex-shrink: 0; width: 26px; height: 26px; margin-top: 1px; }
+    .toast-icon svg { width: 100%; height: 100%; display: block; }
+    .toast-body { flex: 1; }
+    .toast-body strong { display: block; font-size: 14px; margin-bottom: 2px; }
+    .toast-close { background: none; border: none; color: inherit; font-size: 18px; line-height: 1; cursor: pointer; padding: 0 0 0 4px; opacity: .75; }
+    .toast-close:hover { opacity: 1; }
+    .toast-progress { position: absolute; left: 0; bottom: 0; height: 4px; background: rgba(255,255,255,.5); width: 100%; animation: toast-progress linear forwards; }
+    @keyframes toast-in { from { transform: translateY(-120%) scale(.9); } to { transform: translateY(0) scale(1); } }
+    @keyframes toast-out { to { transform: translateY(-120%); } }
+    @keyframes toast-progress { from { width: 100%; } to { width: 0; } }
+    @keyframes shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 40% { transform: translateX(7px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(5px); } }
+    .campo-invalido { border-color: #dc2626 !important; box-shadow: 0 0 0 2px rgba(220,38,38,.25) !important; animation: shake .45s ease; }
+    .overlay-carga { position: fixed; inset: 0; background: rgba(15,23,42,.55); backdrop-filter: blur(3px); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; z-index: 10000; color: #fff; text-align: center; padding: 20px; }
+    .overlay-carga.visible { display: flex; }
+    .overlay-carga .spinner { width: 48px; height: 48px; border: 4px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: girar .8s linear infinite; }
+    .overlay-carga p { font-size: 14px; font-weight: 600; }
+    @keyframes girar { to { transform: rotate(360deg); } }
+    .hora-servidor.alerta { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; padding: 8px 10px; border-radius: 6px; font-weight: 600; margin-top: 8px; }
+    .check-anim circle { stroke-dasharray: 166; stroke-dashoffset: 166; animation: trazo .6s ease forwards; }
+    .check-anim path { stroke-dasharray: 48; stroke-dashoffset: 48; animation: trazo .35s ease .55s forwards; }
+    @keyframes trazo { to { stroke-dashoffset: 0; } }
+    .confeti { position: absolute; top: 0; left: 0; width: 0; height: 0; pointer-events: none; }
+    .confeti i { position: fixed; top: 10px; width: 7px; height: 10px; border-radius: 2px; opacity: 0; animation: caer 1.4s ease-out forwards; }
+    @keyframes caer { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(280px) rotate(540deg); opacity: 0; } }
   </style>
 </head>
 <body>
@@ -45,6 +82,7 @@
     <div class="form-group">
       <label>Tipo de Registro (Automático):</label>
       <input type="text" id="tipoRegistro" readonly value="Cargando hora...">
+      <div id="horaServidor" class="hora-servidor"></div>
     </div>
     <div class="form-group">
       <label for="buscarVendedor">Buscar Vendedor (Código o Nombre):</label>
@@ -58,7 +96,7 @@
     </div>
     <div class="form-group">
       <label for="comentario">Observación / Comentario <span style="color:#dc2626;font-weight:bold;">(Obligatorio)</span>:</label>
-      <textarea id="comentario" rows="3" placeholder="Escribe alguna novedad u observación aquí..."></textarea>
+      <textarea id="comentario" rows="3" placeholder="Escribe alguna novedad u observación aquí..." maxlength="500"></textarea>
     </div>
     <div class="form-group">
       <label>Foto obligatoria:</label>
@@ -73,21 +111,42 @@
         <button type="button" id="btnTomarFoto" class="btn-foto" style="flex:1;">📸 Tomar Foto</button>
         <button type="button" id="btnCambiarCamara" class="btn-foto" style="flex:1;background:#64748b;">🔄 Cambiar</button>
       </div>
+      <select id="selectorCamara" class="selector-camara" style="display:none;"></select>
       <div id="errorCamara" class="msg-cam-error">Se requiere acceso a la cámara para poder procesar y enviar el registro de asistencia. Verifica los permisos del navegador (usa HTTPS o permite el acceso a la cámara) e intenta nuevamente.</div>
       <button type="button" id="btnReintentarCamara" class="btn-foto" style="margin-top:6px;display:none;">🔁 Reintentar Cámara</button>
     </div>
     <div id="msgGps" class="msg-gps">Obteniendo ubicación GPS...</div>
+    <div id="estadoOffline" class="estado-offline"></div>
     <button type="submit" id="btnEnviar" class="btn-submit" disabled>Enviar Registro</button>
   </form>
+</div>
+
+<div id="toastContainer" class="toast-container" aria-live="polite"></div>
+<div id="overlayCarga" class="overlay-carga" role="status" aria-live="assertive">
+  <div class="spinner"></div>
+  <p>Enviando registro...</p>
 </div>
 
 <script>
   let listaVendedoresGlobal = [];
   let latitudUsuario = null;
   let longitudUsuario = null;
+  let accuracyUsuario = null;
   let fotoBase64Capturada = null;
+  let fotoSelloCodigo = null;
   let camaraStream = null;
   let facingMode = 'environment';
+  let dispositivoSeleccionado = null;
+  let capturaToken = null;
+  let enviando = false;
+  let idSolicitudActual = null;
+  let gpsWatchId = null;
+  let gpsIntentos = 0;
+  let desfaseHoraInvalido = false;
+
+  const GPS_ACCURACY_OK = 150;
+  const TOLERANCIA_HORA_MS = 5 * 60 * 1000;
+  const VENDEDORES_CACHE_KEY = 'vendedoresCacheRegistro';
 
   function formatearFechaDispositivo() {
     const ahora = new Date();
@@ -100,45 +159,274 @@
     return `${y}-${m}-${d} ${h}:${min}:${s}`;
   }
 
-  function definirTipoRegistro() {
+  /* ================= NOTIFICACIONES (toasts, shake, overlay) ================= */
+  const ICONO_ERROR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="13"></line><line x1="12" y1="16.5" x2="12.01" y2="16.5"></line></svg>';
+  const ICONO_WARNING = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
+  const ICONO_INFO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+  const ICONO_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 12.5 11 15.5 16.5 9"></path></svg>';
+  const COLORES_CONFETI = ['#f59e0b', '#ef4444', '#3b82f6', '#22c55e', '#a855f7', '#facc15'];
+
+  function mostrarToast(tipo, titulo, mensaje, duracionMs) {
+    const contenedor = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + (tipo || 'info');
+    const dur = duracionMs || (tipo === 'success' ? 4500 : 5000);
+    const esExito = tipo === 'success';
+
+    const iconoEl = document.createElement('span');
+    iconoEl.className = 'toast-icon' + (esExito ? ' check-anim' : '');
+    if (tipo === 'error') iconoEl.innerHTML = ICONO_ERROR;
+    else if (tipo === 'warning') iconoEl.innerHTML = ICONO_WARNING;
+    else if (tipo === 'info') iconoEl.innerHTML = ICONO_INFO;
+    else if (esExito) iconoEl.innerHTML = ICONO_CHECK;
+    toast.appendChild(iconoEl);
+
+    const body = document.createElement('div');
+    body.className = 'toast-body';
+    const tituloEl = document.createElement('strong');
+    tituloEl.textContent = titulo;
+    const msgEl = document.createElement('div');
+    msgEl.textContent = mensaje;
+    body.appendChild(tituloEl);
+    body.appendChild(msgEl);
+    toast.appendChild(body);
+
+    if (esExito) {
+      const confeti = document.createElement('span');
+      confeti.className = 'confeti';
+      for (let i = 0; i < 12; i++) {
+        const c = document.createElement('i');
+        c.style.left = (4 + Math.random() * 92) + 'vw';
+        c.style.background = COLORES_CONFETI[i % COLORES_CONFETI.length];
+        c.style.animationDelay = (0.1 * Math.random()) + 's';
+        confeti.appendChild(c);
+      }
+      document.body.appendChild(confeti);
+      setTimeout(() => { if (confeti.parentNode) confeti.parentNode.removeChild(confeti); }, 1700);
+    }
+
+    const cerrarBtn = document.createElement('button');
+    cerrarBtn.type = 'button';
+    cerrarBtn.className = 'toast-close';
+    cerrarBtn.setAttribute('aria-label', 'Cerrar notificación');
+    cerrarBtn.textContent = '\u00d7';
+    cerrarBtn.onclick = () => cerrarToast(toast);
+    toast.appendChild(cerrarBtn);
+
+    const barra = document.createElement('div');
+    barra.className = 'toast-progress';
+    barra.style.animationDuration = dur + 'ms';
+    toast.appendChild(barra);
+
+    contenedor.appendChild(toast);
+    if (navigator.vibrate) {
+      try { navigator.vibrate(tipo === 'error' ? 80 : 40); } catch (e) {}
+    }
+    toast._timer = setTimeout(() => cerrarToast(toast), dur);
+  }
+
+  function cerrarToast(toast) {
+    if (toast._cerrado) return;
+    toast._cerrado = true;
+    if (toast._timer) clearTimeout(toast._timer);
+    toast.classList.add('saliendo');
+    setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 320);
+  }
+
+  function marcarCampoInvalido(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('campo-invalido');
+    void el.offsetWidth;
+    el.classList.add('campo-invalido');
+    el.addEventListener('animationend', function fin() {
+      el.classList.remove('campo-invalido');
+      el.removeEventListener('animationend', fin);
+    });
+    if (typeof el.focus === 'function') el.focus();
+  }
+
+  function mostrarOverlayCarga(visible, texto) {
+    const ov = document.getElementById('overlayCarga');
+    if (texto) ov.querySelector('p').textContent = texto;
+    ov.classList.toggle('visible', Boolean(visible));
+  }
+
+  function definirTipoRegistroLocal() {
     const hora = new Date().getHours();
     document.getElementById('tipoRegistro').value = hora < 13 ? "ENTRADA (Mañana)" : "SALIDA (Tarde)";
   }
 
-  function obtenerUbicacion() {
-    const msgGps = document.getElementById('msgGps');
-    const btnEnviar = document.getElementById('btnEnviar');
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          latitudUsuario = pos.coords.latitude;
-          longitudUsuario = pos.coords.longitude;
-          msgGps.style.color = "#16a34a";
-          msgGps.innerText = "✓ Ubicación GPS confirmada";
-          if (fotoBase64Capturada) btnEnviar.disabled = false;
-        },
-        (err) => {
-          msgGps.style.color = "#dc2626";
-          msgGps.innerText = "Error: Debes activar el GPS y permitir el acceso a tu ubicación.";
-          btnEnviar.disabled = true;
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    } else {
-      msgGps.innerText = "Tu navegador no soporta geolocalización.";
-    }
+  function generarIdSolicitud() {
+    if (crypto && crypto.randomUUID) return crypto.randomUUID();
+    return 'sol-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
   }
+
+  /* ================= GPS ROBUSTO ================= */
+  function actualizarMsgGps(texto, color) {
+    const msg = document.getElementById('msgGps');
+    msg.innerText = texto;
+    msg.style.color = color || '#dc2626';
+  }
+
+  function iniciarGps() {
+    if (!navigator.geolocation) {
+      actualizarMsgGps('Tu navegador no soporta geolocalización. Usa Chrome, Edge o Safari.');
+      return;
+    }
+    actualizarMsgGps('Buscando señal GPS...', '#64748b');
+    pedirPosicion();
+  }
+
+  function pedirPosicion() {
+    gpsIntentos++;
+    navigator.geolocation.getCurrentPosition(
+      procesarPosicion,
+      (err) => {
+        if (gpsIntentos < 4) {
+          actualizarMsgGps('No se pudo fijar la posición. Reintentando...', '#b45309');
+          setTimeout(pedirPosicion, 1500);
+        } else {
+          actualizarMsgGps('No se pudo obtener tu ubicación. Activa el GPS y el permiso de ubicación del navegador para registrar.', '#dc2626');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }
+
+  function procesarPosicion(pos) {
+    latitudUsuario = pos.coords.latitude;
+    longitudUsuario = pos.coords.longitude;
+    accuracyUsuario = Math.round(pos.coords.accuracy);
+    const msg = document.getElementById('msgGps');
+    if (accuracyUsuario <= GPS_ACCURACY_OK) {
+      actualizarMsgGps(`✓ Ubicación GPS confirmada (precisión ${accuracyUsuario} m)`, '#16a34a');
+      if (gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+        gpsWatchId = null;
+      }
+    } else {
+      actualizarMsgGps(`⚠️ Señal débil (precisión ${accuracyUsuario} m). Esperando mejor señal...`, '#b45309');
+      if (gpsWatchId === null) {
+        gpsWatchId = navigator.geolocation.watchPosition(procesarPosicion, null, {
+          enableHighAccuracy: true, timeout: 20000, maximumAge: 0
+        });
+      }
+    }
+    actualizarBotonEnviar();
+  }
+
+  function gpsListo() {
+    return latitudUsuario !== null && longitudUsuario !== null && accuracyUsuario !== null && accuracyUsuario <= GPS_ACCURACY_OK;
+  }
+
+  /* ================= VENDEDORES (debounce + teclado) ================= */
+  let listaFiltrada = [];
+  let indiceSeleccion = -1;
+  let debounceTimer = null;
 
   async function cargarVendedores() {
     try {
       const res = await fetch('/api/vendedores');
       const result = await res.json();
-      listaVendedoresGlobal = result.data || [];
-    } catch (e) {
-      console.error("Error al cargar vendedores", e);
-    }
+      if (result.success) {
+        listaVendedoresGlobal = result.data || [];
+        try {
+          localStorage.setItem(VENDEDORES_CACHE_KEY, JSON.stringify({ t: Date.now(), d: listaVendedoresGlobal }));
+        } catch (e) {}
+        return;
+      }
+    } catch (e) {}
+    try {
+      const cache = JSON.parse(localStorage.getItem(VENDEDORES_CACHE_KEY) || 'null');
+      if (cache && Array.isArray(cache.d) && cache.d.length > 0) {
+        listaVendedoresGlobal = cache.d;
+      }
+    } catch (e) {}
   }
 
+  function filtrarVendedores(valor) {
+    const filtro = valor.trim().toLowerCase();
+    indiceSeleccion = -1;
+    if (!filtro) { listaContainer.style.display = 'none'; return; }
+    listaFiltrada = listaVendedoresGlobal.filter(v =>
+      String(v.codigo).toLowerCase().includes(filtro) ||
+      String(v.nombre).toLowerCase().includes(filtro)
+    );
+    renderListaVendedores();
+  }
+
+  function renderListaVendedores() {
+    listaContainer.innerHTML = '';
+    if (listaFiltrada.length === 0) {
+      listaContainer.innerHTML = '<div class="dropdown-item" style="color:#888;">Sin coincidencias</div>';
+      listaContainer.style.display = 'block';
+      return;
+    }
+    listaFiltrada.forEach((v, i) => {
+      const item = document.createElement('div');
+      item.className = 'dropdown-item' + (i === indiceSeleccion ? ' activo' : '');
+      item.innerText = `${v.codigo} - ${v.nombre}`;
+      item.onmousedown = (e) => { e.preventDefault(); seleccionarVendedor(v); };
+      item.onmouseover = () => { indiceSeleccion = i; actualizarItemsActivos(); };
+      listaContainer.appendChild(item);
+    });
+    listaContainer.style.display = 'block';
+  }
+
+  function actualizarItemsActivos() {
+    Array.from(listaContainer.children).forEach((el, i) => {
+      el.classList.toggle('activo', i === indiceSeleccion);
+    });
+  }
+
+  function ocultarLista() { listaContainer.style.display = 'none'; }
+
+  function seleccionarVendedor(v) {
+    inputBuscar.value = `${v.codigo} - ${v.nombre}`;
+    document.getElementById('codigoVendedorSelected').value = v.codigo;
+    document.getElementById('nombreVendedor').value = v.nombre;
+    ocultarLista();
+    if (fotoBase64Capturada && fotoSelloCodigo !== v.codigo) {
+      limpiarFoto('Al cambiar de vendedor debes tomar una foto nueva.');
+    }
+    actualizarBotonEnviar();
+    emitirTokenCaptura(v.codigo);
+  }
+
+  async function emitirTokenCaptura(codigo) {
+    capturaToken = null;
+    try {
+      const res = await fetch('/api/registros/captura-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codigo })
+      });
+      const data = await res.json();
+      if (data.success) {
+        capturaToken = data.token;
+        document.getElementById('tipoRegistro').value = data.tipo || document.getElementById('tipoRegistro').value;
+        const horaEl = document.getElementById('horaServidor');
+        const tsServer = data.horaServidor ? Date.parse(data.horaServidor.replace(' ', 'T')) : NaN;
+        const antes = desfaseHoraInvalido;
+        if (isFinite(tsServer) && Math.abs(tsServer - Date.now()) > TOLERANCIA_HORA_MS) {
+          desfaseHoraInvalido = true;
+          horaEl.className = 'hora-servidor alerta';
+          horaEl.innerText = '⚠️ La hora de tu teléfono no coincide con la del servidor (más de 5 min de diferencia). Configura tu reloj en automático para poder registrar.';
+        } else {
+          desfaseHoraInvalido = false;
+          horaEl.className = 'hora-servidor';
+          horaEl.innerText = `Hora del servidor: ${data.horaServidor}`;
+        }
+        if (!antes && desfaseHoraInvalido && !sincronizando) {
+          mostrarToast('warning', 'Reloj desfasado', 'Tu dispositivo tiene la hora desfasada respecto al servidor. Por favor, configura tu reloj en automático para poder registrar.');
+        }
+        actualizarBotonEnviar();
+      }
+    } catch (e) {}
+  }
+
+  /* ================= CÁMARA ================= */
   function obtenerMensajeErrorCamara(err) {
     const nombre = err && err.name;
     if (nombre === 'NotAllowedError' || nombre === 'SecurityError') {
@@ -156,6 +444,30 @@
     return 'No se pudo acceder a la cámara. Se requiere el uso de la cámara en tiempo real para poder procesar y enviar el registro de asistencia. Verifica los permisos (usa HTTPS) e intenta nuevamente.';
   }
 
+  async function listarCamarasDisponibles() {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const camaras = devices.filter(d => d.kind === 'videoinput');
+      const sel = document.getElementById('selectorCamara');
+      if (camaras.length <= 1) { sel.style.display = 'none'; return; }
+      sel.style.display = 'block';
+      sel.innerHTML = '';
+      camaras.forEach((c, i) => {
+        const opt = document.createElement('option');
+        opt.value = c.deviceId || '';
+        opt.textContent = c.label || (i === 0 ? 'Cámara Trasera' : 'Cámara ' + (i + 1));
+        sel.appendChild(opt);
+      });
+      sel.onchange = () => {
+        if (fotoBase64Capturada) limpiarFoto();
+        dispositivoSeleccionado = sel.value || null;
+        detenerCamara();
+        iniciarCamara();
+      };
+    } catch (e) {}
+  }
+
   function iniciarCamara() {
     const video = document.getElementById('camaraVideo');
     const placeholder = document.getElementById('camaraPlaceholder');
@@ -168,7 +480,6 @@
       errorCam.style.display = 'block';
       btnReintentar.style.display = 'block';
       btnTomarFoto.disabled = true;
-      document.getElementById('btnEnviar').disabled = true;
       return;
     }
     placeholder.innerText = 'Solicitando permisos de cámara...';
@@ -176,27 +487,49 @@
     errorCam.style.display = 'none';
     btnReintentar.style.display = 'none';
     btnTomarFoto.disabled = true;
-    navigator.mediaDevices.getUserMedia({
-      video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false
-    }).then(stream => {
-      camaraStream = stream;
-      video.srcObject = stream;
-      placeholder.style.display = 'none';
-      errorCam.style.display = 'none';
-      video.style.display = 'block';
-      btnTomarFoto.disabled = false;
-      video.play().catch(() => {});
-    }).catch(err => {
-      camaraStream = null;
-      placeholder.innerText = 'Cámara no disponible';
-      errorCam.innerText = obtenerMensajeErrorCamara(err);
-      errorCam.style.display = 'block';
-      btnReintentar.style.display = 'block';
-      btnTomarFoto.disabled = true;
-      document.getElementById('btnEnviar').disabled = true;
-      console.error('Error de acceso a cámara:', err);
-    });
+    const opcionesVideo = dispositivoSeleccionado
+      ? { deviceId: { exact: dispositivoSeleccionado }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      : { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } };
+    navigator.mediaDevices.getUserMedia({ video: opcionesVideo, audio: false })
+      .then(stream => {
+        camaraStream = stream;
+        video.srcObject = stream;
+        placeholder.style.display = 'none';
+        errorCam.style.display = 'none';
+        video.style.display = 'block';
+        btnTomarFoto.disabled = false;
+        actualizarIndicadorCamara();
+        video.play().catch(() => {});
+      })
+      .catch(err => {
+        camaraStream = null;
+        placeholder.innerText = 'Cámara no disponible';
+        errorCam.innerText = obtenerMensajeErrorCamara(err);
+        errorCam.style.display = 'block';
+        btnReintentar.style.display = 'block';
+        btnTomarFoto.disabled = true;
+        console.error('Error de acceso a cámara:', err);
+      });
+  }
+
+  function actualizarIndicadorCamara() {
+    const indicador = document.getElementById('indicadorCamara');
+    try {
+      const track = camaraStream && camaraStream.getVideoTracks()[0];
+      const settings = track && track.getSettings();
+      if (settings && settings.facingMode === 'user') {
+        indicador.innerText = '📷 Cámara Frontal';
+      } else if (settings && settings.facingMode === 'environment') {
+        indicador.innerText = '📷 Cámara Trasera';
+      } else if (dispositivoSeleccionado) {
+        const sel = document.getElementById('selectorCamara');
+        indicador.innerText = '📷 ' + (sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : 'Cámara');
+      } else {
+        indicador.innerText = facingMode === 'environment' ? '📷 Cámara Trasera' : '📷 Cámara Frontal';
+      }
+    } catch (e) {
+      indicador.innerText = facingMode === 'environment' ? '📷 Cámara Trasera' : '📷 Cámara Frontal';
+    }
   }
 
   function detenerCamara() {
@@ -213,152 +546,378 @@
   function tomarFoto() {
     const video = document.getElementById('camaraVideo');
     if (!video.srcObject || !video.videoWidth) {
-      alert("La cámara aún no está lista. Espera unos segundos e intenta nuevamente.");
+      mostrarToast('warning', 'Cámara no lista', 'La cámara aún no está lista. Espera unos segundos e intenta nuevamente.');
       return;
     }
+    const MAX_W = 800;
+    const ratio = Math.min(1, MAX_W / video.videoWidth);
+    const ancho = Math.round(video.videoWidth * ratio);
+    const alto = Math.round(video.videoHeight * ratio);
     const canvas = document.getElementById('camaraCanvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = ancho;
+    canvas.height = alto;
     const ctx = canvas.getContext('2d');
-    if (facingMode === 'user') {
-      ctx.translate(canvas.width, 0);
+    ctx.save();
+    if (esCamaraFrontal()) {
+      ctx.translate(ancho, 0);
       ctx.scale(-1, 1);
     }
-    ctx.drawImage(video, 0, 0);
-    fotoBase64Capturada = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+    ctx.drawImage(video, 0, 0, ancho, alto);
+    ctx.restore();
+
+    const codigo = document.getElementById('codigoVendedorSelected').value || 'SIN CODIGO';
+    const ahora = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const sello = `${codigo} · ${ahora.getFullYear()}-${pad(ahora.getMonth() + 1)}-${pad(ahora.getDate())} ${pad(ahora.getHours())}:${pad(ahora.getMinutes())}`;
+    ctx.font = 'bold 16px sans-serif';
+    const anchoSello = ctx.measureText(sello).width + 16;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, alto - 34, anchoSello, 34);
+    ctx.fillStyle = '#ffffff';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(sello, 8, alto - 17);
+
+    fotoBase64Capturada = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
+    fotoSelloCodigo = codigo;
+    const kb = Math.round((fotoBase64Capturada.length * 3 / 4) / 1024);
     const preview = document.getElementById('fotoPreview');
     preview.src = `data:image/jpeg;base64,${fotoBase64Capturada}`;
     preview.style.display = 'block';
     document.getElementById('camaraPlaceholder').style.display = 'none';
+    document.getElementById('indicadorCamara').innerText = `📷 Foto tomada con cámara (${kb} KB)`;
+    actualizarBotonEnviar();
+  }
+
+  function esCamaraFrontal() {
+    try {
+      const track = camaraStream && camaraStream.getVideoTracks()[0];
+      const s = track && track.getSettings();
+      if (s && s.facingMode) return s.facingMode === 'user';
+    } catch (e) {}
+    return facingMode === 'user';
+  }
+
+  function limpiarFoto(mensaje) {
+    fotoBase64Capturada = null;
+    fotoSelloCodigo = null;
+    document.getElementById('fotoPreview').style.display = 'none';
     document.getElementById('indicadorCamara').innerText = '📷 Foto tomada con cámara';
-    const btnEnviar = document.getElementById('btnEnviar');
-    if (latitudUsuario) btnEnviar.disabled = false;
+    actualizarBotonEnviar();
+    if (mensaje) mostrarToast('warning', 'Foto descartada', mensaje);
   }
 
   function alternarCamara() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    dispositivoSeleccionado = null;
     facingMode = (facingMode === 'environment') ? 'user' : 'environment';
-    document.getElementById('indicadorCamara').innerText =
-      facingMode === 'environment' ? '📷 Cámara Trasera' : '📷 Cámara Frontal';
-    if (fotoBase64Capturada) {
-      fotoBase64Capturada = null;
-      document.getElementById('fotoPreview').style.display = 'none';
-      document.getElementById('btnEnviar').disabled = true;
-    }
+    if (fotoBase64Capturada) limpiarFoto();
     detenerCamara();
     iniciarCamara();
   }
 
+  /* ================= OFFLINE-FIRST (IndexedDB) ================= */
+  const DB_NOMBRE = 'asistenciaOffline';
+  const DB_STORE = 'pendientes';
+  let dbInstance = null;
+
+  function abrirDB() {
+    return new Promise((resolve, reject) => {
+      if (dbInstance) return resolve(dbInstance);
+      const req = indexedDB.open(DB_NOMBRE, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(DB_STORE)) {
+          db.createObjectStore(DB_STORE, { keyPath: 'idSolicitud' });
+        }
+      };
+      req.onsuccess = () => { dbInstance = req.result; resolve(dbInstance); };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function guardarPendiente(registro) {
+    const db = await abrirDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).put(registro);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+    actualizarBadgeOffline();
+  }
+
+  async function listarPendientes() {
+    const db = await abrirDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readonly');
+      const req = tx.objectStore(DB_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function eliminarPendiente(id) {
+    const db = await abrirDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).delete(id);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+    actualizarBadgeOffline();
+  }
+
+  async function actualizarBadgeOffline(texto) {
+    const badge = document.getElementById('estadoOffline');
+    let cantidad = 0;
+    try {
+      const pendientes = await listarPendientes();
+      cantidad = pendientes.length;
+    } catch (e) {}
+    if (texto) {
+      badge.innerText = texto;
+      badge.className = 'estado-offline ok';
+      badge.style.display = 'block';
+    } else if (!navigator.onLine) {
+      badge.innerText = `📶 Sin conexión: ${cantidad} registro(s) en cola. Se enviarán al recuperar la señal.`;
+      badge.className = 'estado-offline sin-red';
+      badge.style.display = 'block';
+    } else if (cantidad > 0) {
+      badge.innerText = `📶 ${cantidad} registro(s) pendiente(s) de envío.`;
+      badge.className = 'estado-offline sin-red';
+      badge.style.display = 'block';
+    } else {
+      badge.innerText = '';
+      badge.style.display = 'none';
+    }
+  }
+
+  let sincronizando = false;
+
+  async function sincronizarPendientes() {
+    if (sincronizando || !navigator.onLine) return;
+    sincronizando = true;
+    actualizarBadgeOffline('Enviando registros pendientes...');
+    try {
+      const pendientes = await listarPendientes();
+      for (const p of pendientes) {
+        try {
+          const resToken = await fetch('/api/registros/captura-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codigo: p.codigo })
+          });
+          const tok = await resToken.json();
+          if (!tok.success) {
+            await eliminarPendiente(p.idSolicitud);
+            continue;
+          }
+          const payload = { ...p.payload, capturaToken: tok.token, fechaDispositivo: formatearFechaDispositivo() };
+          const res = await fetch('/api/registros', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            await eliminarPendiente(p.idSolicitud);
+          } else if (res.status === 400 || res.status === 409) {
+            console.warn('Pendiente descartado:', data && data.message);
+            await eliminarPendiente(p.idSolicitud);
+          } else {
+            break;
+          }
+        } catch (e) {
+          break;
+        }
+      }
+    } finally {
+      sincronizando = false;
+      actualizarBadgeOffline();
+    }
+  }
+
+  /* ================= ENVÍO ================= */
+  function actualizarBotonEnviar() {
+    const listo = Boolean(document.getElementById('codigoVendedorSelected').value) && Boolean(fotoBase64Capturada) && gpsListo() && !desfaseHoraInvalido;
+    document.getElementById('btnEnviar').disabled = !listo;
+  }
+
+  async function enviarRegistro(e) {
+    e.preventDefault();
+    if (enviando) return;
+    const codigo = document.getElementById('codigoVendedorSelected').value;
+    const nombre = document.getElementById('nombreVendedor').value;
+    const comentario = document.getElementById('comentario').value;
+
+    if (!codigo || !nombre) {
+      marcarCampoInvalido('buscarVendedor');
+      mostrarToast('error', 'Falta seleccionar el vendedor', 'Debes buscar y seleccionar un vendedor válido de la lista antes de enviar.');
+      return;
+    }
+    if (desfaseHoraInvalido) {
+      marcarCampoInvalido('horaServidor');
+      mostrarToast('warning', 'Reloj desfasado', 'Tu dispositivo tiene la hora desfasada respecto al servidor. Configura tu reloj en automático para poder registrar.');
+      return;
+    }
+    if (!fotoBase64Capturada) {
+      marcarCampoInvalido('camaraContainer');
+      mostrarToast('error', 'Falta capturar la foto obligatoria', 'Debes capturar una fotografía con la cámara en este momento para poder enviar el registro de asistencia.');
+      return;
+    }
+    if (!gpsListo()) {
+      marcarCampoInvalido('msgGps');
+      mostrarToast('error', 'GPS no confirmado', 'La ubicación GPS aún no es lo suficientemente precisa. Espera a que se confirme la posición e intenta nuevamente.');
+      return;
+    }
+    if (!comentario.trim()) {
+      marcarCampoInvalido('comentario');
+      mostrarToast('error', 'Falta la observación', 'Debe escribir una observación o comentario (mínimo 3 caracteres) para poder registrar.');
+      return;
+    }
+
+    const btnEnviar = document.getElementById('btnEnviar');
+    const payload = {
+      idSolicitud: idSolicitudActual,
+      codigo,
+      nombre,
+      comentario: comentario.trim(),
+      latitud: latitudUsuario,
+      longitud: longitudUsuario,
+      accuracy: accuracyUsuario,
+      fotoBase64: fotoBase64Capturada,
+      fechaDispositivo: formatearFechaDispositivo()
+    };
+
+    enviando = true;
+    btnEnviar.disabled = true;
+    btnEnviar.innerText = 'Enviando registro...';
+    mostrarOverlayCarga(true, 'Enviando registro...');
+
+    try {
+      let token = capturaToken;
+      if (!token) {
+        const resToken = await fetch('/api/registros/captura-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ codigo })
+        });
+        const tok = await resToken.json();
+        if (!tok.success) {
+          await guardarPendiente({ idSolicitud: idSolicitudActual, codigo, nombre, payload });
+          mostrarOverlayCarga(false);
+          mostrarToast('info', 'Sin conexión', 'No hay conexión disponible. Tu registro quedó guardado en el dispositivo y se enviará automáticamente al recuperar la señal.');
+          setTimeout(() => location.reload(), 2600);
+          return;
+        }
+        token = tok.token;
+      }
+
+      const response = await fetch('/api/registros', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, capturaToken: token })
+      });
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        mostrarOverlayCarga(false);
+        mostrarToast('success', '¡Registro de Campo Exitoso!', 'Tu información ha sido guardada correctamente.');
+        setTimeout(() => location.reload(), 3000);
+      } else if (response.status === 400 || response.status === 409) {
+        capturaToken = null;
+        mostrarOverlayCarga(false);
+        mostrarToast('error', 'No se pudo enviar el registro', result.message || 'Verifica los datos e intenta nuevamente.');
+        btnEnviar.disabled = false;
+        btnEnviar.innerText = 'Enviar Registro';
+        actualizarBotonEnviar();
+      } else {
+        await guardarPendiente({ idSolicitud: idSolicitudActual, codigo, nombre, payload });
+        mostrarOverlayCarga(false);
+        mostrarToast('info', 'Sin conexión', 'El servidor no respondió. Tu registro quedó guardado y se enviará automáticamente al recuperar la conexión.');
+        setTimeout(() => location.reload(), 2600);
+      }
+    } catch (err) {
+      await guardarPendiente({ idSolicitud: idSolicitudActual, codigo, nombre, payload });
+      mostrarOverlayCarga(false);
+      mostrarToast('info', 'Sin conexión', 'Tu registro quedó guardado y se enviará automáticamente al recuperar la señal.');
+      setTimeout(() => location.reload(), 2600);
+    } finally {
+      enviando = false;
+    }
+  }
+
+  /* ================= EVENTOS ================= */
   const inputBuscar = document.getElementById('buscarVendedor');
   const listaContainer = document.getElementById('listaVendedores');
 
   inputBuscar.addEventListener('input', function() {
-    const filtro = this.value.trim().toLowerCase();
-    listaContainer.innerHTML = '';
-    if (!filtro) { listaContainer.style.display = 'none'; return; }
-    const coincidencias = listaVendedoresGlobal.filter(v =>
-      String(v.codigo).toLowerCase().includes(filtro) ||
-      String(v.nombre).toLowerCase().includes(filtro)
-    );
-    if (coincidencias.length === 0) {
-      listaContainer.innerHTML = `<div class="dropdown-item" style="color:#888;">Sin coincidencias</div>`;
-    } else {
-      coincidencias.forEach(v => {
-        const item = document.createElement('div');
-        item.className = 'dropdown-item';
-        item.innerText = `${v.codigo} - ${v.nombre}`;
-        item.onclick = function() {
-          inputBuscar.value = `${v.codigo} - ${v.nombre}`;
-          document.getElementById('codigoVendedorSelected').value = v.codigo;
-          document.getElementById('nombreVendedor').value = v.nombre;
-          listaContainer.style.display = 'none';
-        };
-        listaContainer.appendChild(item);
-      });
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => filtrarVendedores(this.value), 200);
+  });
+
+  inputBuscar.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      indiceSeleccion = Math.min(listaFiltrada.length - 1, indiceSeleccion + 1);
+      renderListaVendedores();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      indiceSeleccion = Math.max(0, indiceSeleccion - 1);
+      renderListaVendedores();
+    } else if (e.key === 'Enter') {
+      if (indiceSeleccion > -1 && listaFiltrada[indiceSeleccion]) {
+        e.preventDefault();
+        seleccionarVendedor(listaFiltrada[indiceSeleccion]);
+      }
+    } else if (e.key === 'Escape') {
+      ocultarLista();
     }
-    listaContainer.style.display = 'block';
+  });
+
+  inputBuscar.addEventListener('blur', function() {
+    setTimeout(() => {
+      ocultarLista();
+      const codigoSel = document.getElementById('codigoVendedorSelected').value;
+      if (!codigoSel && this.value.trim()) {
+        this.value = '';
+        document.getElementById('nombreVendedor').value = '';
+        actualizarBotonEnviar();
+      }
+    }, 150);
   });
 
   document.addEventListener('click', function(e) {
     if (!inputBuscar.contains(e.target) && !listaContainer.contains(e.target)) {
-      listaContainer.style.display = 'none';
+      ocultarLista();
     }
   });
 
   document.getElementById('btnTomarFoto').addEventListener('click', tomarFoto);
   document.getElementById('btnCambiarCamara').addEventListener('click', alternarCamara);
   document.getElementById('btnReintentarCamara').addEventListener('click', function() {
-    if (fotoBase64Capturada) {
-      fotoBase64Capturada = null;
-      document.getElementById('fotoPreview').style.display = 'none';
-      document.getElementById('btnEnviar').disabled = true;
-    }
+    if (fotoBase64Capturada) limpiarFoto();
     iniciarCamara();
   });
+  document.getElementById('registroForm').addEventListener('submit', enviarRegistro);
 
-  document.getElementById('registroForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const codigo = document.getElementById('codigoVendedorSelected').value;
-    const nombre = document.getElementById('nombreVendedor').value;
-    const tipo = document.getElementById('tipoRegistro').value;
-    const comentario = document.getElementById('comentario').value;
-    const btnEnviar = document.getElementById('btnEnviar');
-
-    if (!codigo || !nombre) {
-      alert("Por favor busca y selecciona un vendedor válido de la lista.");
-      return;
-    }
-    if (!fotoBase64Capturada) {
-      alert("Debes capturar una fotografía con la cámara en este momento para poder enviar el registro de asistencia.");
-      return;
-    }
-    if (!comentario.trim()) {
-      alert("Debe ingresar una observación o comentario para registrar.");
-      document.getElementById('comentario').focus();
-      return;
-    }
-
-    detenerCamara();
-    btnEnviar.disabled = true;
-    btnEnviar.innerText = "Enviando registro...";
-
-    try {
-      const payload = {
-        codigo, nombre, tipo,
-        comentario: comentario,
-        latitud: latitudUsuario,
-        longitud: longitudUsuario,
-        fotoBase64: fotoBase64Capturada,
-        fotoNombre: `foto_${codigo}_${Date.now()}.jpg`,
-        fechaDispositivo: formatearFechaDispositivo()
-      };
-
-      const response = await fetch('/api/registros', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        alert("¡Registro enviado con éxito!");
-        location.reload();
-      } else {
-        alert("Error al guardar: " + result.message);
-      }
-    } catch (err) {
-      alert("Ocurrió un error al enviar la información.");
-    } finally {
-      btnEnviar.disabled = false;
-      btnEnviar.innerText = "Enviar Registro";
-    }
+  window.addEventListener('online', function() {
+    actualizarBadgeOffline();
+    sincronizarPendientes();
+  });
+  window.addEventListener('offline', function() {
+    actualizarBadgeOffline();
   });
 
   window.onload = function() {
-    definirTipoRegistro();
-    obtenerUbicacion();
+    idSolicitudActual = generarIdSolicitud();
+    definirTipoRegistroLocal();
+    iniciarGps();
     cargarVendedores();
+    listarCamarasDisponibles();
     setTimeout(iniciarCamara, 500);
+    actualizarBadgeOffline();
+    sincronizarPendientes();
   };
 </script>
 </body>

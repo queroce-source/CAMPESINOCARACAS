@@ -1,7 +1,29 @@
 const VendedorModel = require('../models/VendedorModel');
 const RegistroModel = require('../models/RegistroModel');
 const UsuarioModel = require('../models/UsuarioModel');
+const TokenModel = require('../models/TokenModel');
 const cache = require('../config/cache');
+const {
+  hashClave,
+  verificarClave,
+  firmarToken,
+  SESSION_TTL_MS,
+  fechaCaracas,
+  fechaHoraCaracas,
+  tipoServidor,
+  toleranciaFechaValida,
+  sanitizarTexto,
+  validarGeo,
+  validarFotoBase64,
+  cookieSesion,
+  cookieSesionBorrada,
+  COMENTARIO_MIN,
+  COMENTARIO_MAX
+} = require('../config/security');
+
+function esSolicitudSegura(req) {
+  return Boolean(req.secure || String(req.headers['x-forwarded-proto'] || '').startsWith('https'));
+}
 
 exports.getVendedores = async (req, res) => {
   try {
@@ -23,7 +45,7 @@ exports.getVendedores = async (req, res) => {
 exports.getDashboard = async (req, res) => {
   try {
     const { fecha, supervisor } = req.query;
-    const targetDate = fecha || new Date().toISOString().split('T')[0];
+    const targetDate = fecha || fechaCaracas();
     const sup = supervisor || 'TODOS';
 
     const rows = await RegistroModel.getDashboard(targetDate, sup);
@@ -64,7 +86,7 @@ exports.getDashboard = async (req, res) => {
 exports.getDetalle = async (req, res) => {
   try {
     const { fechaInicio, fechaFin, supervisor, texto } = req.query;
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = fechaCaracas();
     const inicio = fechaInicio || hoy;
     const fin = fechaFin || hoy;
 
@@ -105,7 +127,7 @@ exports.getDetalle = async (req, res) => {
 exports.getGraficos = async (req, res) => {
   try {
     const { fecha } = req.query;
-    const targetDate = fecha || new Date().toISOString().split('T')[0];
+    const targetDate = fecha || fechaCaracas();
 
     const [dashboardRows, timelineRows] = await Promise.all([
       RegistroModel.getDashboard(targetDate, 'TODOS'),
@@ -148,46 +170,18 @@ exports.getGraficos = async (req, res) => {
   }
 };
 
-exports.crearRegistro = async (req, res) => {
-  try {
-    const { codigo, nombre, tipo, comentario, latitud, longitud, fotoBase64, fotoNombre, fechaDispositivo } = req.body;
-
-    if (!codigo || !nombre || !tipo) {
-      return res.status(400).json({ success: false, message: 'Faltan datos obligatorios' });
-    }
-
-    let rutaFoto = null;
-    if (fotoBase64) {
-      rutaFoto = `data:image/jpeg;base64,${fotoBase64}`;
-    }
-
-    const result = await RegistroModel.crear({
-      codigo,
-      nombre,
-      tipo,
-      comentario,
-      latitud,
-      longitud,
-      foto: rutaFoto,
-      fecha: fechaDispositivo
-    });
-
-    cache.invalidate('all_registros');
-
-    res.json({ success: true, id: result.id });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
-
 exports.getAllRegistros = async (req, res) => {
   try {
     const { supervisor } = req.query;
+    const sesionSup = req.usuarioSesion && req.usuarioSesion.supervisorAsignado;
+    const esSupervisorFiltrado = req.usuarioSesion && req.usuarioSesion.rol !== 'ADMIN' && sesionSup && sesionSup !== 'TODOS';
+
     let codigos = null;
     let cacheKey = 'all_registros';
-    if (supervisor && supervisor !== 'TODOS') {
-      cacheKey = `registros_sup_${supervisor}`;
-      const vendedores = await cache.get(`vendedores_sup_${supervisor}`, 300000, () => VendedorModel.getBySupervisor(supervisor));
+    const sup = esSupervisorFiltrado ? sesionSup : (supervisor && supervisor !== 'TODOS' ? supervisor : null);
+    if (sup) {
+      cacheKey = `registros_sup_${sup}`;
+      const vendedores = await cache.get(`vendedores_sup_${sup}`, 300000, () => VendedorModel.getBySupervisor(sup));
       codigos = vendedores.map(v => v.codigo);
     }
     const registros = await cache.get(cacheKey, 60000, () => RegistroModel.getAll(codigos));
@@ -205,17 +199,207 @@ exports.login = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Usuario y clave requeridos' });
     }
 
-    const user = await UsuarioModel.findByUsuario(usuario);
-    if (!user || user.clave !== clave) {
-      return res.json({ success: false, message: 'Usuario o clave incorrectos' });
+    const user = await UsuarioModel.findByUsuario(String(usuario).trim());
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Usuario o clave incorrectos' });
     }
 
+    let ok = false;
+    if (user.claveHash) {
+      ok = verificarClave(clave, user.claveHash);
+    } else if (user.clave !== undefined) {
+      ok = user.clave === clave;
+    }
+
+    if (!ok) {
+      return res.status(401).json({ success: false, message: 'Usuario o clave incorrectos' });
+    }
+
+    if (!user.claveHash) {
+      try {
+        await UsuarioModel.actualizarCredenciales(user.usuario, { claveHash: hashClave(clave) });
+      } catch (err) {
+        console.error('No se pudo migrar credencial de', user.usuario, err.message);
+      }
+    }
+
+    const token = firmarToken(
+      {
+        tipo: 'sesion',
+        usuario: user.usuario,
+        rol: user.rol,
+        supervisorAsignado: user.supervisorAsignado || 'TODOS'
+      },
+      SESSION_TTL_MS
+    );
+    res.setHeader('Set-Cookie', cookieSesion(token, { secure: esSolicitudSegura(req) }));
     res.json({
       success: true,
       usuario: user.usuario,
       rol: user.rol,
       supervisorAsignado: user.supervisorAsignado || 'TODOS'
     });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.logout = async (req, res) => {
+  res.setHeader('Set-Cookie', cookieSesionBorrada({ secure: esSolicitudSegura(req) }));
+  res.json({ success: true, message: 'Sesión cerrada' });
+};
+
+exports.me = async (req, res) => {
+  const s = req.usuarioSesion;
+  res.json({
+    success: true,
+    usuario: s.usuario,
+    rol: s.rol,
+    supervisorAsignado: s.supervisorAsignado || 'TODOS'
+  });
+};
+
+exports.emitirCapturaToken = async (req, res) => {
+  try {
+    const { codigo } = req.body;
+    if (!codigo) {
+      return res.status(400).json({ success: false, message: 'Código de vendedor requerido' });
+    }
+    const codigoNorm = String(codigo).trim().toUpperCase();
+    const vendedor = await VendedorModel.getByCodigo(codigoNorm);
+    if (!vendedor) {
+      return res.status(404).json({ success: false, message: 'Vendedor no encontrado' });
+    }
+
+    const tipo = tipoServidor();
+    const { token, expiraMs } = await TokenModel.emitir({ codigo: codigoNorm, tipo });
+    res.json({
+      success: true,
+      token,
+      tipo,
+      expiraMs,
+      horaServidor: fechaHoraCaracas()
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.crearRegistro = async (req, res) => {
+  try {
+    const {
+      idSolicitud,
+      codigo,
+      nombre,
+      capturaToken,
+      comentario,
+      latitud,
+      longitud,
+      accuracy,
+      fotoBase64,
+      fechaDispositivo
+    } = req.body;
+
+    if (!idSolicitud || !/^[A-Za-z0-9_-]{8,64}$/.test(String(idSolicitud))) {
+      return res.status(400).json({ success: false, message: 'Identificador de solicitud inválido' });
+    }
+    if (!codigo || !nombre) {
+      return res.status(400).json({ success: false, message: 'Código y nombre de vendedor requeridos' });
+    }
+
+    const codigoNorm = String(codigo).trim().toUpperCase();
+    const nombreLimpio = sanitizarTexto(nombre, 120);
+
+    const vendedor = await VendedorModel.getByCodigo(codigoNorm);
+    if (!vendedor) {
+      return res.status(404).json({ success: false, message: 'Vendedor no encontrado. Selecciona un vendedor válido de la lista.' });
+    }
+    if (vendedor.nombre.toUpperCase() !== nombreLimpio.toUpperCase()) {
+      return res.status(400).json({ success: false, message: 'El nombre no corresponde al código del vendedor. Selecciona de la lista.' });
+    }
+
+    const tokenValido = await TokenModel.verificarYConsumir(capturaToken, codigoNorm);
+    if (!tokenValido.ok) {
+      const mensajes = {
+        TOKEN_INVALIDO: 'Token de captura inválido.',
+        TOKEN_YA_USADO: 'Este token de captura ya fue utilizado.',
+        TOKEN_EXPIRADO: 'El token de captura expiró. Vuelve a seleccionar el vendedor e intenta nuevamente.',
+        TOKEN_CODIGO_INCORRECTO: 'El token no corresponde al vendedor seleccionado.'
+      };
+      return res.status(409).json({
+        success: false,
+        message: mensajes[tokenValido.motivo] || 'No se pudo validar el token de captura.'
+      });
+    }
+
+    const fechaServer = fechaHoraCaracas();
+    if (!toleranciaFechaValida(fechaDispositivo, fechaServer)) {
+      return res.status(400).json({
+        success: false,
+        message: 'La fecha/hora del dispositivo no coincide con la del servidor. Ajusta el reloj e intenta nuevamente.'
+      });
+    }
+
+    const comentarioLimpio = sanitizarTexto(comentario, COMENTARIO_MAX);
+    if (comentarioLimpio.length < COMENTARIO_MIN) {
+      return res.status(400).json({ success: false, message: 'La observación es obligatoria (mínimo 3 caracteres).' });
+    }
+
+    const geo = validarGeo(latitud, longitud, accuracy);
+    if (!geo.ok) {
+      const mensajes = {
+        COORDENADAS_INVALIDAS: 'Coordenadas GPS inválidas.',
+        COORDENADAS_CERO: 'La ubicación GPS no fue capturada.',
+        COORDENADAS_FUERA_RANGO: 'Las coordenadas están fuera de rango válido.',
+        COORDENADAS_FUERA_ZONA: 'La ubicación GPS está fuera de la zona de operación (Caracas).',
+        PRECISION_GPS_INSUFICIENTE: 'La precisión del GPS es insuficiente. Acércate a un lugar abierto e intenta nuevamente.'
+      };
+      return res.status(400).json({ success: false, message: mensajes[geo.motivo] || 'Ubicación GPS no válida.' });
+    }
+
+    const foto = validarFotoBase64(fotoBase64);
+    if (!foto.ok) {
+      const mensajes = {
+        SIN_FOTO: 'Debes capturar una fotografía con la cámara para registrar la asistencia.',
+        FOTO_DEMASIADO_GRANDE: 'La fotografía excede el tamaño máximo permitido.',
+        BASE64_INVALIDO: 'La fotografía enviada está corrupta.',
+        FOTO_INVALIDA: 'La fotografía no es válida.',
+        FORMATO_NO_JPEG: 'La fotografía debe ser una imagen JPEG capturada con la cámara.'
+      };
+      return res.status(400).json({ success: false, message: mensajes[foto.motivo] || 'Fotografía no válida.' });
+    }
+
+    const yaUsada = await RegistroModel.existeFotoHashHoy(codigoNorm, foto.hash, fechaCaracas());
+    if (yaUsada) {
+      return res.status(409).json({
+        success: false,
+        message: 'Esta fotografía ya fue utilizada hoy para este vendedor. Debes tomar una foto nueva en este momento.'
+      });
+    }
+
+    const tipo = tipoServidor();
+    const result = await RegistroModel.crearConValidacionSecuencia({
+      idSolicitud,
+      codigo: codigoNorm,
+      nombre: nombreLimpio,
+      tipo,
+      comentario: comentarioLimpio,
+      latitud,
+      longitud,
+      accuracy,
+      foto: `data:image/jpeg;base64,${fotoBase64}`,
+      fotoHash: foto.hash,
+      fechaDispositivo: sanitizarTexto(fechaDispositivo, 40),
+      fecha: fechaServer
+    });
+
+    if (result.error) {
+      return res.status(409).json({ success: false, message: result.error });
+    }
+
+    cache.clear();
+
+    res.json({ success: true, id: result.id, duplicado: Boolean(result.duplicado) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

@@ -217,6 +217,15 @@
   const ICONO_PAPELES = `<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>`;
   const NOMBRES_MES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
+  function escaparHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   /* --- Estado global de filtros --- */
   const filters = { texto: '', supervisor: 'TODOS', estado: 'TODOS', anio: 'TODOS', mes: 'TODOS', dia: 'TODOS', diaSemana: 'TODOS' };
   let allVendedores = [];
@@ -390,19 +399,18 @@
 
   function generarHtmlEstado(reg, nombreVendedor) {
     if (!reg) return '<span class="badge-pend">PENDIENTE</span>';
-    const nombre = nombreVendedor || '';
+    const nombre = escaparHtml(nombreVendedor || '');
     const hora = formatearHora(reg.fecha);
     let html = `<div><span class="badge-reg">✓ REGISTRADO</span> <span class="hora">🕒 ${hora}</span></div>`;
     html += '<div class="actions">';
     if (reg.foto) {
-      html += `<button onclick="verFoto('${nombre}', '${reg.foto}')" class="btn-act btn-foto">📸 Foto</button>`;
+      html += `<button type="button" class="btn-act btn-foto" data-accion="foto" data-nombre="${nombre}" data-foto="${escaparHtml(reg.foto)}">📸 Foto</button>`;
     }
     if (reg.latitud && reg.longitud) {
-      html += `<button onclick="verMapa('${nombre}', '${reg.latitud}', '${reg.longitud}')" class="btn-act btn-mapa">📍 Mapa</button>`;
+      html += `<button type="button" class="btn-act btn-mapa" data-accion="mapa" data-nombre="${nombre}" data-lat="${escaparHtml(reg.latitud)}" data-lng="${escaparHtml(reg.longitud)}">📍 Mapa</button>`;
     }
     if (reg.comentario && reg.comentario.trim() !== "") {
-      const comLimpio = reg.comentario.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-      html += `<button onclick="verComentario('${nombre}', '${comLimpio}')" class="btn-act btn-obs">💬 Obs</button>`;
+      html += `<button type="button" class="btn-act btn-obs" data-accion="obs" data-nombre="${nombre}" data-comentario="${escaparHtml(reg.comentario)}">💬 Obs</button>`;
     }
     html += '</div>';
     return html;
@@ -430,9 +438,9 @@
       const pct = efectividad(r);
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><strong>${r.codigo}</strong></td>
-        <td>${r.nombre}</td>
-        <td>${r.supervisor || '-'}</td>
+        <td><strong>${escaparHtml(r.codigo)}</strong></td>
+        <td>${escaparHtml(r.nombre)}</td>
+        <td>${escaparHtml(r.supervisor || '-')}</td>
         <td>${generarHtmlEstado(r.entrada, r.nombre)}</td>
         <td>${generarHtmlEstado(r.salida, r.nombre)}</td>
         <td><span class="badge-pct ${obtenerClaseBadgePct(pct)}">${pct}%</span></td>
@@ -455,7 +463,7 @@
       const pctSal = s.total > 0 ? Math.round((s.salidasReg / s.total) * 100) : 0;
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><strong>${s.supervisor}</strong></td>
+        <td><strong>${escaparHtml(s.supervisor)}</strong></td>
         <td>${s.total}</td>
         <td><span style="color:#16a34a;font-weight:bold;">${s.entradasReg}</span> / <span style="color:#dc2626;">${entPend}</span></td>
         <td><span style="color:#2563eb;font-weight:bold;">${s.salidasReg}</span> / <span style="color:#ea580c;">${salPend}</span></td>
@@ -705,32 +713,61 @@
     }
   }
 
-  function verificarSesion() {
-    const userSesion = localStorage.getItem('userControlAsistencia');
-    if (userSesion) {
-      usuarioActual = JSON.parse(userSesion);
-      document.getElementById('vistaLogin').style.display = 'none';
-      document.getElementById('panelAdmin').style.display = 'block';
-      document.getElementById('userInfo').innerText = `Usuario: ${usuarioActual.usuario} | Rol: ${usuarioActual.rol} | Asignación: ${usuarioActual.supervisorAsignado || 'TODOS'}`;
-      poblarDiasDelMes();
-      poblarAnos();
-      const hoy = new Date();
-      document.getElementById('filterMes').value = hoy.getMonth().toString();
-      document.getElementById('filterDia').value = hoy.getDate().toString();
-      bindFilterEvents();
-      const cache = cargarCache();
-      if (cache && cache.vendedores && cache.vendedores.length > 0) {
-        allVendedores = cache.vendedores;
-        allRegistros = cache.registros || [];
-        console.log('[DEBUG] Cache local — vendedores:', allVendedores.length, 'registros:', allRegistros.length, '(sin fetch)');
-        poblarSupervisores(allVendedores);
-        renderDesdeCache();
-      } else {
-        fetchAllData();
-      }
+  function mostrarPanel(avisoOffline) {
+    document.getElementById('vistaLogin').style.display = 'none';
+    document.getElementById('panelAdmin').style.display = 'block';
+    document.getElementById('userInfo').innerText = `Usuario: ${usuarioActual.usuario} | Rol: ${usuarioActual.rol} | Asignación: ${usuarioActual.supervisorAsignado || 'TODOS'}` + (avisoOffline ? ' | 📶 sin conexión (datos de caché)' : '');
+    poblarDiasDelMes();
+    poblarAnos();
+    const hoy = new Date();
+    document.getElementById('filterMes').value = hoy.getMonth().toString();
+    document.getElementById('filterDia').value = hoy.getDate().toString();
+    bindFilterEvents();
+    const cache = cargarCache();
+    if (cache && cache.vendedores && cache.vendedores.length > 0) {
+      allVendedores = cache.vendedores;
+      allRegistros = cache.registros || [];
+      poblarSupervisores(allVendedores);
+      renderDesdeCache();
     } else {
-      document.getElementById('vistaLogin').style.display = 'flex';
-      document.getElementById('panelAdmin').style.display = 'none';
+      fetchAllData();
+    }
+  }
+
+  function mostrarLogin() {
+    document.getElementById('vistaLogin').style.display = 'flex';
+    document.getElementById('panelAdmin').style.display = 'none';
+  }
+
+  async function verificarSesion() {
+    try {
+      const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          usuarioActual = {
+            usuario: data.usuario,
+            rol: data.rol,
+            supervisorAsignado: data.supervisorAsignado || 'TODOS'
+          };
+          try {
+            localStorage.setItem('userControlAsistencia', JSON.stringify(usuarioActual));
+          } catch (e) {}
+          mostrarPanel(false);
+          return;
+        }
+      }
+      mostrarLogin();
+    } catch (err) {
+      const sesionGuardada = localStorage.getItem('userControlAsistencia');
+      if (sesionGuardada) {
+        try {
+          usuarioActual = JSON.parse(sesionGuardada);
+          mostrarPanel(true);
+          return;
+        } catch (e) {}
+      }
+      mostrarLogin();
     }
   }
 
@@ -755,7 +792,7 @@
         localStorage.setItem('userControlAsistencia', JSON.stringify({
           usuario: data.usuario, rol: data.rol, supervisorAsignado: data.supervisorAsignado || 'TODOS'
         }));
-        verificarSesion();
+        await verificarSesion();
       } else {
         msgError.innerText = data.message || 'Usuario o clave incorrectos.';
         msgError.style.display = 'block';
@@ -768,7 +805,10 @@
     }
   });
 
-  function cerrarSesion() {
+  async function cerrarSesion() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    } catch (e) {}
     localStorage.removeItem('userControlAsistencia');
     limpiarCache();
     allVendedores = [];
@@ -778,33 +818,47 @@
 
   function verFoto(nombre, urlFoto) {
     document.getElementById('modalTitulo').innerText = `Foto de: ${nombre}`;
+    const url = String(urlFoto || '');
     let contenidoHtml = '';
-    if (urlFoto.includes('drive.google.com')) {
-      let previewUrl = urlFoto;
-      if (urlFoto.includes('/file/d/')) {
-        const fileId = urlFoto.split('/file/d/')[1].split('/')[0];
+    if (url.includes('drive.google.com')) {
+      let previewUrl = url;
+      if (url.includes('/file/d/')) {
+        const fileId = url.split('/file/d/')[1].split('/')[0];
         previewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
-      } else if (urlFoto.includes('id=')) {
-        const fileId = urlFoto.split('id=')[1].split('&')[0];
+      } else if (url.includes('id=')) {
+        const fileId = url.split('id=')[1].split('&')[0];
         previewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
       }
-      contenidoHtml = `<iframe src="${previewUrl}" style="width:100%;height:450px;border:none;border-radius:8px;"></iframe><div style="margin-top:10px;"><a href="${urlFoto}" target="_blank" style="color:#e85d04;font-weight:bold;font-size:12px;text-decoration:underline;">🔗 Abrir foto en pestaña nueva</a></div>`;
+      contenidoHtml = `<iframe src="${escaparHtml(previewUrl)}" style="width:100%;height:450px;border:none;border-radius:8px;"></iframe><div style="margin-top:10px;"><a href="${escaparHtml(url)}" target="_blank" rel="noopener" style="color:#e85d04;font-weight:bold;font-size:12px;text-decoration:underline;">🔗 Abrir foto en pestaña nueva</a></div>`;
+    } else if (url.startsWith('data:image/')) {
+      contenidoHtml = `<img src="${escaparHtml(url)}" alt="Foto de registro" style="max-width:100%;max-height:70vh;border-radius:8px;">`;
     } else {
-      contenidoHtml = `<img src="${urlFoto}" alt="Foto de registro" style="max-width:100%;max-height:70vh;border-radius:8px;">`;
+      contenidoHtml = `<p style="color:#888;">Foto no disponible.</p>`;
     }
     document.getElementById('modalContenido').innerHTML = contenidoHtml;
     document.getElementById('modalVisor').style.display = 'flex';
   }
 
   function verMapa(nombre, lat, lng) {
+    const latN = Number(lat);
+    const lngN = Number(lng);
+    if (!isFinite(latN) || !isFinite(lngN) || latN < -90 || latN > 90 || lngN < -180 || lngN > 180) {
+      alert('Coordenadas no disponibles.');
+      return;
+    }
     document.getElementById('modalTitulo').innerText = `Ubicación de: ${nombre}`;
-    document.getElementById('modalContenido').innerHTML = `<iframe src="https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed" style="width:100%;height:400px;border:none;border-radius:8px;"></iframe>`;
+    document.getElementById('modalContenido').innerHTML = `<iframe src="https://maps.google.com/maps?q=${latN},${lngN}&z=16&output=embed" style="width:100%;height:400px;border:none;border-radius:8px;"></iframe>`;
     document.getElementById('modalVisor').style.display = 'flex';
   }
 
   function verComentario(nombre, comentario) {
     document.getElementById('modalTitulo').innerText = `Observación de: ${nombre}`;
-    document.getElementById('modalContenido').innerHTML = `<div style="background:#f8fafc;padding:15px;border-radius:8px;text-align:left;white-space:pre-wrap;">${comentario}</div>`;
+    const body = document.getElementById('modalContenido');
+    body.innerHTML = '';
+    const div = document.createElement('div');
+    div.style.cssText = 'background:#f8fafc;padding:15px;border-radius:8px;text-align:left;white-space:pre-wrap;';
+    div.textContent = comentario || 'Sin comentario';
+    body.appendChild(div);
     document.getElementById('modalVisor').style.display = 'flex';
   }
 
@@ -812,6 +866,16 @@
     document.getElementById('modalVisor').style.display = 'none';
     document.getElementById('modalContenido').innerHTML = '';
   }
+
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest && e.target.closest('.btn-act');
+    if (!btn) return;
+    const accion = btn.dataset.accion;
+    const nombre = btn.dataset.nombre || '';
+    if (accion === 'foto') verFoto(nombre, btn.dataset.foto);
+    else if (accion === 'mapa') verMapa(nombre, btn.dataset.lat, btn.dataset.lng);
+    else if (accion === 'obs') verComentario(nombre, btn.dataset.comentario);
+  });
 
   window.onload = function() { verificarSesion(); };
 </script>

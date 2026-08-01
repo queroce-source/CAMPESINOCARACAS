@@ -23,6 +23,12 @@ class VendedorModel {
     return vendedores;
   }
 
+  static async getByCodigo(codigo) {
+    const doc = await db.collection(COLLECTION).doc(codigo).get();
+    if (!doc.exists) return null;
+    return { id: doc.id, ...doc.data() };
+  }
+
   static async search(q) {
     const snap = await db.collection(COLLECTION).get();
     const lower = q.toLowerCase();

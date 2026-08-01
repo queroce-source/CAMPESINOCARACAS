@@ -68,17 +68,56 @@
 <script>
   let usuarioActual = null;
 
-  function verificarSesion() {
-    const userSesion = localStorage.getItem('userControlAsistencia');
-    if (userSesion) {
-      usuarioActual = JSON.parse(userSesion);
-      document.getElementById('vistaLogin').style.display = 'none';
-      document.getElementById('panelAdmin').style.display = 'block';
-      document.getElementById('userInfo').innerText = `Usuario: ${usuarioActual.usuario} | Rol: ${usuarioActual.rol} | Asignación: ${usuarioActual.supervisorAsignado || 'TODOS'}`;
-      cargarTodo();
-    } else {
-      document.getElementById('vistaLogin').style.display = 'flex';
-      document.getElementById('panelAdmin').style.display = 'none';
+  function escaparHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function mostrarPanel() {
+    document.getElementById('vistaLogin').style.display = 'none';
+    document.getElementById('panelAdmin').style.display = 'block';
+    document.getElementById('userInfo').innerText = `Usuario: ${usuarioActual.usuario} | Rol: ${usuarioActual.rol} | Asignación: ${usuarioActual.supervisorAsignado || 'TODOS'}`;
+    cargarTodo();
+  }
+
+  function mostrarLogin() {
+    document.getElementById('vistaLogin').style.display = 'flex';
+    document.getElementById('panelAdmin').style.display = 'none';
+  }
+
+  async function verificarSesion() {
+    try {
+      const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          usuarioActual = {
+            usuario: data.usuario,
+            rol: data.rol,
+            supervisorAsignado: data.supervisorAsignado || 'TODOS'
+          };
+          try {
+            localStorage.setItem('userControlAsistencia', JSON.stringify(usuarioActual));
+          } catch (e) {}
+          mostrarPanel();
+          return;
+        }
+      }
+      mostrarLogin();
+    } catch (err) {
+      const sesionGuardada = localStorage.getItem('userControlAsistencia');
+      if (sesionGuardada) {
+        try {
+          usuarioActual = JSON.parse(sesionGuardada);
+          mostrarPanel();
+          return;
+        } catch (e) {}
+      }
+      mostrarLogin();
     }
   }
 
@@ -103,7 +142,7 @@
         localStorage.setItem('userControlAsistencia', JSON.stringify({
           usuario: data.usuario, rol: data.rol, supervisorAsignado: data.supervisorAsignado || "TODOS"
         }));
-        verificarSesion();
+        await verificarSesion();
       } else {
         msgError.innerText = data.message || "Usuario o clave incorrectos.";
         msgError.style.display = "block";
@@ -116,7 +155,10 @@
     }
   });
 
-  function cerrarSesion() {
+  async function cerrarSesion() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    } catch (e) {}
     localStorage.removeItem('userControlAsistencia');
     location.reload();
   }
@@ -157,11 +199,11 @@
       detData.data.forEach(r => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td><strong>${r.codigo}</strong></td>
-          <td>${r.nombre}</td>
-          <td>${r.supervisor || '-'}</td>
-          <td>${generarHtmlEstado(r.entrada)}</td>
-          <td>${generarHtmlEstado(r.salida)}</td>
+          <td><strong>${escaparHtml(r.codigo)}</strong></td>
+          <td>${escaparHtml(r.nombre)}</td>
+          <td>${escaparHtml(r.supervisor || '-')}</td>
+          <td>${generarHtmlEstado(r.entrada, r.nombre)}</td>
+          <td>${generarHtmlEstado(r.salida, r.nombre)}</td>
         `;
         tbody.appendChild(tr);
       });
@@ -170,15 +212,21 @@
     }
   }
 
-  function generarHtmlEstado(reg) {
+  function generarHtmlEstado(reg, nombreVendedor) {
     if (!reg) return `<span class="badge-pend">PENDIENTE</span>`;
     const hora = formatearHora(reg.fecha);
+    const nombre = escaparHtml(nombreVendedor || '');
     let html = `<div><span class="badge-reg">✓ REGISTRADO</span> <span class="hora">🕒 ${hora}</span></div>`;
     html += `<div class="actions">`;
-    if (reg.foto) html += `<a href="${reg.foto}" target="_blank" class="btn-act btn-foto">📸 Foto</a>`;
-    if (reg.maps) html += `<a href="${reg.maps}" target="_blank" class="btn-act btn-mapa">📍 Mapa</a>`;
-    if (reg.latitud && reg.longitud) html += `<a href="https://maps.google.com/maps?q=${reg.latitud},${reg.longitud}" target="_blank" class="btn-act btn-mapa">📍 Mapa</a>`;
-    if (reg.comentario && reg.comentario.trim() !== "") html += `<button onclick="verComentario('${reg.nombre || ''}', '${reg.comentario.replace(/'/g, "\\'")}')" class="btn-act btn-obs">💬 Obs</button>`;
+    if (reg.foto) {
+      html += `<button type="button" class="btn-act btn-foto" data-accion="foto" data-nombre="${nombre}" data-foto="${escaparHtml(reg.foto)}">📸 Foto</button>`;
+    }
+    if (reg.latitud && reg.longitud) {
+      html += `<button type="button" class="btn-act btn-mapa" data-accion="mapa" data-nombre="${nombre}" data-lat="${escaparHtml(reg.latitud)}" data-lng="${escaparHtml(reg.longitud)}">📍 Mapa</button>`;
+    }
+    if (reg.comentario && reg.comentario.trim() !== "") {
+      html += `<button type="button" class="btn-act btn-obs" data-accion="obs" data-nombre="${nombre}" data-comentario="${escaparHtml(reg.comentario)}">💬 Obs</button>`;
+    }
     html += `</div>`;
     return html;
   }
@@ -190,6 +238,25 @@
   }
 
   function cerrarModal() { document.getElementById('modalObs').style.display = 'none'; }
+
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest && e.target.closest('.btn-act');
+    if (!btn) return;
+    const accion = btn.dataset.accion;
+    const nombre = btn.dataset.nombre || '';
+    if (accion === 'foto') {
+      const url = String(btn.dataset.foto || '');
+      window.open(url, '_blank', 'noopener');
+    } else if (accion === 'mapa') {
+      const lat = Number(btn.dataset.lat);
+      const lng = Number(btn.dataset.lng);
+      if (isFinite(lat) && isFinite(lng)) {
+        window.open(`https://maps.google.com/maps?q=${lat},${lng}`, '_blank', 'noopener');
+      }
+    } else if (accion === 'obs') {
+      verComentario(nombre, btn.dataset.comentario);
+    }
+  });
 
   window.onload = function() { verificarSesion(); };
 </script>
