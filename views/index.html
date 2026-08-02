@@ -23,9 +23,9 @@
     .btn-submit:hover { background: var(--naranja-hover); }
     .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; }
     .msg-gps { color: var(--rojo); font-size: 12px; font-weight: bold; text-align: center; margin-top: 10px; }
-    .camara-container { width: 100%; border: 2px dashed var(--borde-input); border-radius: 8px; overflow: hidden; background: #f8fafc; text-align: center; }
+    .camara-container { width: 100%; border: 2px dashed var(--borde-input); border-radius: 8px; overflow: hidden; background: #f8fafc; text-align: center; position: relative; }
     .camara-container .placeholder { padding: 30px 10px; color: #94a3b8; font-size: 14px; }
-    .camara-container video { width: 100%; display: block; border-radius: 6px; }
+    .camara-container video { width: 100%; display: block; border-radius: 6px; cursor: pointer; }
     .btn-foto { width: 100%; background: var(--azul-marino); color: white; border: none; padding: 10px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 6px; transition: 0.2s; }
     .btn-foto:hover { background: #1e2d3a; }
     .btn-foto:disabled { background: #94a3b8; cursor: not-allowed; }
@@ -36,7 +36,9 @@
     .estado-offline { font-size: 12px; font-weight: bold; text-align: center; margin-top: 8px; padding: 8px; border-radius: 6px; display: none; }
     .estado-offline.sin-red { background: #fef3c7; color: #92400e; }
     .estado-offline.ok { background: #dcfce7; color: #15803d; }
-    .selector-camara { margin-top: 6px; }
+    .hint-tomar { position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 5; background: rgba(0,0,0,0.55); color: #fff; font-size: 13px; font-weight: 600; text-align: center; padding: 8px 10px; border-radius: 6px; pointer-events: none; }
+    .btn-eliminar-foto { width: 100%; background: #dc2626; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 6px; transition: 0.2s; }
+    .btn-eliminar-foto:hover { background: #b91c1c; }
     /* ===== SISTEMA DE NOTIFICACIONES (toasts, shake, overlay) ===== */
     .toast-container { position: fixed; top: 12px; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 9999; pointer-events: none; padding: 0 12px; }
     .toast { pointer-events: auto; position: relative; width: 100%; max-width: 420px; display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; color: #fff; font-size: 14px; font-weight: 500; line-height: 1.4; background-color: #334155; opacity: 1 !important; border: 1px solid rgba(255,255,255,.25); box-shadow: 0 12px 32px rgba(0,0,0,.35); overflow: hidden; animation: toast-in .35s cubic-bezier(.21,1.02,.73,1) forwards; }
@@ -103,15 +105,11 @@
       <div class="camara-container" id="camaraContainer">
         <div class="placeholder" id="camaraPlaceholder">Iniciando cámara...</div>
         <video id="camaraVideo" autoplay playsinline style="display:none;"></video>
+        <span class="hint-tomar" id="hintTomar" style="display:none;">📷 Toca la pantalla para tomar la foto</span>
         <canvas id="camaraCanvas" style="display:none;"></canvas>
         <img id="fotoPreview" class="foto-preview" alt="Vista previa">
-        <div id="indicadorCamara" style="font-size:12px;color:#64748b;padding:4px 0;">📷 Cámara Trasera</div>
       </div>
-      <div style="display:flex;gap:6px;margin-top:6px;">
-        <button type="button" id="btnTomarFoto" class="btn-foto" style="flex:1;">📸 Tomar Foto</button>
-        <button type="button" id="btnCambiarCamara" class="btn-foto" style="flex:1;background:#64748b;">🔄 Cambiar</button>
-      </div>
-      <select id="selectorCamara" class="selector-camara" style="display:none;"></select>
+      <button type="button" id="btnEliminarFoto" class="btn-eliminar-foto" style="display:none;">🗑 Repetir foto</button>
       <div id="errorCamara" class="msg-cam-error">Se requiere acceso a la cámara para poder procesar y enviar el registro de asistencia. Verifica los permisos del navegador (usa HTTPS o permite el acceso a la cámara) e intenta nuevamente.</div>
       <button type="button" id="btnReintentarCamara" class="btn-foto" style="margin-top:6px;display:none;">🔁 Reintentar Cámara</button>
     </div>
@@ -135,8 +133,6 @@
   let fotoBase64Capturada = null;
   let fotoSelloCodigo = null;
   let camaraStream = null;
-  let facingMode = 'environment';
-  let dispositivoSeleccionado = null;
   let capturaToken = null;
   let enviando = false;
   let idSolicitudActual = null;
@@ -389,6 +385,7 @@
     ocultarLista();
     if (fotoBase64Capturada && fotoSelloCodigo !== v.codigo) {
       limpiarFoto('Al cambiar de vendedor debes tomar una foto nueva.');
+      iniciarCamara();
     }
     actualizarBotonEnviar();
     emitirTokenCaptura(v.codigo);
@@ -444,61 +441,34 @@
     return 'No se pudo acceder a la cámara. Se requiere el uso de la cámara en tiempo real para poder procesar y enviar el registro de asistencia. Verifica los permisos (usa HTTPS) e intenta nuevamente.';
   }
 
-  async function listarCamarasDisponibles() {
-    try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const camaras = devices.filter(d => d.kind === 'videoinput');
-      const sel = document.getElementById('selectorCamara');
-      if (camaras.length <= 1) { sel.style.display = 'none'; return; }
-      sel.style.display = 'block';
-      sel.innerHTML = '';
-      camaras.forEach((c, i) => {
-        const opt = document.createElement('option');
-        opt.value = c.deviceId || '';
-        opt.textContent = c.label || (i === 0 ? 'Cámara Trasera' : 'Cámara ' + (i + 1));
-        sel.appendChild(opt);
-      });
-      sel.onchange = () => {
-        if (fotoBase64Capturada) limpiarFoto();
-        dispositivoSeleccionado = sel.value || null;
-        detenerCamara();
-        iniciarCamara();
-      };
-    } catch (e) {}
-  }
-
   function iniciarCamara() {
     const video = document.getElementById('camaraVideo');
     const placeholder = document.getElementById('camaraPlaceholder');
     const errorCam = document.getElementById('errorCamara');
-    const btnTomarFoto = document.getElementById('btnTomarFoto');
+    const hint = document.getElementById('hintTomar');
     const btnReintentar = document.getElementById('btnReintentarCamara');
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       placeholder.innerText = 'Cámara no disponible en este dispositivo';
       errorCam.innerText = 'Se requiere una cámara para poder procesar y enviar el registro de asistencia. Usa un navegador compatible (Chrome, Edge o Safari) en un dispositivo con cámara.';
       errorCam.style.display = 'block';
       btnReintentar.style.display = 'block';
-      btnTomarFoto.disabled = true;
       return;
     }
     placeholder.innerText = 'Solicitando permisos de cámara...';
     placeholder.style.display = 'block';
     errorCam.style.display = 'none';
     btnReintentar.style.display = 'none';
-    btnTomarFoto.disabled = true;
-    const opcionesVideo = dispositivoSeleccionado
-      ? { deviceId: { exact: dispositivoSeleccionado }, width: { ideal: 1280 }, height: { ideal: 720 } }
-      : { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } };
-    navigator.mediaDevices.getUserMedia({ video: opcionesVideo, audio: false })
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    })
       .then(stream => {
         camaraStream = stream;
         video.srcObject = stream;
         placeholder.style.display = 'none';
         errorCam.style.display = 'none';
         video.style.display = 'block';
-        btnTomarFoto.disabled = false;
-        actualizarIndicadorCamara();
+        hint.style.display = 'block';
         video.play().catch(() => {});
       })
       .catch(err => {
@@ -507,29 +477,8 @@
         errorCam.innerText = obtenerMensajeErrorCamara(err);
         errorCam.style.display = 'block';
         btnReintentar.style.display = 'block';
-        btnTomarFoto.disabled = true;
         console.error('Error de acceso a cámara:', err);
       });
-  }
-
-  function actualizarIndicadorCamara() {
-    const indicador = document.getElementById('indicadorCamara');
-    try {
-      const track = camaraStream && camaraStream.getVideoTracks()[0];
-      const settings = track && track.getSettings();
-      if (settings && settings.facingMode === 'user') {
-        indicador.innerText = '📷 Cámara Frontal';
-      } else if (settings && settings.facingMode === 'environment') {
-        indicador.innerText = '📷 Cámara Trasera';
-      } else if (dispositivoSeleccionado) {
-        const sel = document.getElementById('selectorCamara');
-        indicador.innerText = '📷 ' + (sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : 'Cámara');
-      } else {
-        indicador.innerText = facingMode === 'environment' ? '📷 Cámara Trasera' : '📷 Cámara Frontal';
-      }
-    } catch (e) {
-      indicador.innerText = facingMode === 'environment' ? '📷 Cámara Trasera' : '📷 Cámara Frontal';
-    }
   }
 
   function detenerCamara() {
@@ -540,7 +489,7 @@
     const video = document.getElementById('camaraVideo');
     video.style.display = 'none';
     video.srcObject = null;
-    document.getElementById('camaraPlaceholder').style.display = 'block';
+    document.getElementById('hintTomar').style.display = 'none';
   }
 
   function tomarFoto() {
@@ -558,10 +507,8 @@
     canvas.height = alto;
     const ctx = canvas.getContext('2d');
     ctx.save();
-    if (esCamaraFrontal()) {
-      ctx.translate(ancho, 0);
-      ctx.scale(-1, 1);
-    }
+    ctx.translate(ancho, 0);
+    ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, ancho, alto);
     ctx.restore();
 
@@ -580,38 +527,35 @@
     fotoBase64Capturada = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
     fotoSelloCodigo = codigo;
     const kb = Math.round((fotoBase64Capturada.length * 3 / 4) / 1024);
+
+    detenerCamara();
+
     const preview = document.getElementById('fotoPreview');
     preview.src = `data:image/jpeg;base64,${fotoBase64Capturada}`;
     preview.style.display = 'block';
+    document.getElementById('btnEliminarFoto').style.display = 'block';
     document.getElementById('camaraPlaceholder').style.display = 'none';
-    document.getElementById('indicadorCamara').innerText = `📷 Foto tomada con cámara (${kb} KB)`;
+    document.getElementById('errorCamara').style.display = 'none';
+    document.getElementById('btnReintentarCamara').style.display = 'none';
     actualizarBotonEnviar();
-  }
-
-  function esCamaraFrontal() {
-    try {
-      const track = camaraStream && camaraStream.getVideoTracks()[0];
-      const s = track && track.getSettings();
-      if (s && s.facingMode) return s.facingMode === 'user';
-    } catch (e) {}
-    return facingMode === 'user';
+    if (navigator.vibrate) {
+      try { navigator.vibrate(40); } catch (e) {}
+    }
   }
 
   function limpiarFoto(mensaje) {
     fotoBase64Capturada = null;
     fotoSelloCodigo = null;
-    document.getElementById('fotoPreview').style.display = 'none';
-    document.getElementById('indicadorCamara').innerText = '📷 Foto tomada con cámara';
+    const preview = document.getElementById('fotoPreview');
+    preview.style.display = 'none';
+    preview.src = '';
+    document.getElementById('btnEliminarFoto').style.display = 'none';
     actualizarBotonEnviar();
     if (mensaje) mostrarToast('warning', 'Foto descartada', mensaje);
   }
 
-  function alternarCamara() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-    dispositivoSeleccionado = null;
-    facingMode = (facingMode === 'environment') ? 'user' : 'environment';
-    if (fotoBase64Capturada) limpiarFoto();
-    detenerCamara();
+  function repetirFoto() {
+    limpiarFoto();
     iniciarCamara();
   }
 
@@ -893,8 +837,8 @@
     }
   });
 
-  document.getElementById('btnTomarFoto').addEventListener('click', tomarFoto);
-  document.getElementById('btnCambiarCamara').addEventListener('click', alternarCamara);
+  document.getElementById('camaraVideo').addEventListener('click', tomarFoto);
+  document.getElementById('btnEliminarFoto').addEventListener('click', repetirFoto);
   document.getElementById('btnReintentarCamara').addEventListener('click', function() {
     if (fotoBase64Capturada) limpiarFoto();
     iniciarCamara();
@@ -914,8 +858,7 @@
     definirTipoRegistroLocal();
     iniciarGps();
     cargarVendedores();
-    listarCamarasDisponibles();
-    setTimeout(iniciarCamara, 500);
+    setTimeout(iniciarCamara, 300);
     actualizarBadgeOffline();
     sincronizarPendientes();
   };
