@@ -754,7 +754,7 @@
     const hoy = fechaHoyCaracas();
     document.getElementById('filterAno').value = hoy.slice(0, 4);
     document.getElementById('filterMes').value = String(parseInt(hoy.slice(5, 7), 10) - 1);
-    document.getElementById('filterDia').value = 'TODOS';
+    document.getElementById('filterDia').value = String(parseInt(hoy.slice(8, 10), 10));
     document.getElementById('filterSupervisor').value = 'TODOS';
     document.getElementById('filterEstado').value = 'TODOS';
     document.getElementById('filterDiaSemana').value = 'TODOS';
