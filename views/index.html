@@ -638,6 +638,17 @@
 
   let sincronizando = false;
 
+  function invalidarCachePanel() {
+    try {
+      const claves = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.indexOf('cache_vendedores') !== -1 || k.indexOf('cache_registros') !== -1)) claves.push(k);
+      }
+      claves.forEach(k => localStorage.removeItem(k));
+    } catch (e) {}
+  }
+
   async function sincronizarPendientes() {
     if (sincronizando || !navigator.onLine) return;
     sincronizando = true;
@@ -665,6 +676,7 @@
           const data = await res.json();
           if (res.ok && data.success) {
             await eliminarPendiente(p.idSolicitud);
+            invalidarCachePanel();
           } else if (res.status === 400 || res.status === 409) {
             console.warn('Pendiente descartado:', data && data.message);
             await eliminarPendiente(p.idSolicitud);
@@ -765,6 +777,7 @@
       const result = await response.json();
 
       if (response.ok && result.success) {
+        invalidarCachePanel();
         mostrarOverlayCarga(false);
         mostrarToast('success', '¡Registro de Campo Exitoso!', 'Tu información ha sido guardada correctamente.');
         setTimeout(() => location.reload(), 3000);

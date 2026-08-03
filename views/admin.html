@@ -264,6 +264,13 @@
     return isNaN(d.getTime()) ? -1 : d.getDay();
   }
 
+  /* --- Fecha "hoy" en la zona de Caracas (UTC-4), independiente del reloj del navegador --- */
+  function fechaHoyCaracas() {
+    const ahora = new Date();
+    const utcMs = ahora.getTime() + ahora.getTimezoneOffset() * 60000;
+    return new Date(utcMs - (4 * 3600000)).toISOString().slice(0, 10);
+  }
+
   /* --- Rango de fechas desde filtros --- */
   function obtenerRangoFecha() {
     const a = filters.anio;
@@ -281,11 +288,11 @@
     if (a !== 'TODOS') {
       return { inicio: `${a}-01-01`, fin: `${a}-12-31` };
     }
-    const hoy = new Date();
-    const anio = hoy.getFullYear();
-    const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-    const dia = String(hoy.getDate()).padStart(2, '0');
-    return { inicio: `${anio}-${mes}-${dia}`, fin: `${anio}-${mes}-${dia}` };
+    const hoy = fechaHoyCaracas();
+    const anio = hoy.slice(0, 4);
+    const mes = hoy.slice(5, 7);
+    const dia = hoy.slice(8, 10);
+    return { inicio: `${anio}-${mes}-01`, fin: `${anio}-${mes}-${dia}` };
   }
 
   /* --- Filtrado 100% client-side (AND lógico sobre datos crudos) --- */
@@ -299,7 +306,7 @@
     if (filters.texto) {
       const t = filters.texto.toLowerCase();
       vendedores = vendedores.filter(v =>
-        v.codigo.toLowerCase().includes(t) || v.nombre.toLowerCase().includes(t)
+        String(v.codigo || '').toLowerCase().includes(t) || String(v.nombre || '').toLowerCase().includes(t)
       );
     }
 
@@ -309,9 +316,12 @@
     });
 
     const result = vendedores.map(v => {
-      const vr = registros.filter(r => r.codigo === v.codigo);
-      const entrada = vr.find(r => r.tipo.toUpperCase().includes('ENTRADA'));
-      const salida = vr.find(r => r.tipo.toUpperCase().includes('SALIDA'));
+      const nombreKey = String(v.nombre || '').trim().toUpperCase();
+      const vr = registros.filter(r =>
+        r.codigo === v.codigo || (!r.codigo && String(r.nombre || '').trim().toUpperCase() === nombreKey)
+      );
+      const entrada = vr.find(r => String(r.tipo || '').toUpperCase().includes('ENTRADA'));
+      const salida = vr.find(r => String(r.tipo || '').toUpperCase().includes('SALIDA'));
       return {
         codigo: v.codigo, nombre: v.nombre, supervisor: v.supervisor || '-',
         entrada: entrada ? { fecha: entrada.fecha, foto: entrada.foto, comentario: entrada.comentario, latitud: entrada.latitud, longitud: entrada.longitud } : null,
@@ -568,11 +578,25 @@
     renderKPIs(kpi);
     renderTablaDetalle(filtered);
     renderSupervisores(supervisores);
-    renderCharts(supervisores, timeline);
+    try {
+      renderCharts(supervisores, timeline);
+    } catch (e) {
+      console.warn('[WARN] No se pudieron renderizar los gráficos (CDN de Chart.js no disponible):', e);
+    }
   }
 
   /* --- Fetch completo (vendedores + todos los registros, una sola vez) --- */
   async function fetchAllData() {
+    if (!navigator.onLine) {
+      const cache = cargarCache();
+      if (cache && cache.vendedores && cache.vendedores.length > 0) {
+        allVendedores = cache.vendedores;
+        allRegistros = cache.registros || [];
+        poblarSupervisores(allVendedores);
+        renderDesdeCache();
+      }
+      return;
+    }
     document.getElementById('tablaCuerpo').innerHTML = '<tr><td colspan="6" style="text-align:center;">Cargando datos...</td></tr>';
     try {
       const supParam = (usuarioActual && usuarioActual.rol !== 'ADMIN' && usuarioActual.supervisorAsignado && usuarioActual.supervisorAsignado !== 'TODOS')
@@ -583,15 +607,23 @@
       ]);
       const jsonV = await resV.json();
       const jsonR = await resR.json();
-      if (!jsonV.success || !jsonR.success) throw new Error('Error del servidor');
+      console.log('[DEBUG] /api/vendedores status:', resV.status, 'success:', jsonV.success, 'items:', (jsonV.data || []).length);
+      console.log('[DEBUG] /api/registros/all status:', resR.status, 'success:', jsonR.success, 'items:', (jsonR.data || []).length);
+      if (!jsonV.success || !jsonR.success) {
+        throw new Error('Error del servidor (status vendedores=' + resV.status + ', status registros=' + resR.status + ')');
+      }
       allVendedores = jsonV.data;
       allRegistros = jsonR.data;
       poblarSupervisores(allVendedores);
+      const rango = obtenerRangoFecha();
+      const muestra = allRegistros[0];
       console.log('[DEBUG] Vendedores:', allVendedores.length, '| Registros totales:', allRegistros.length);
+      console.log('[DEBUG] Rango filtrado:', JSON.stringify(rango), '| Ejemplo fecha registro:', muestra ? muestra.fecha : '(sin registros)');
       guardarCache({ vendedores: allVendedores, registros: allRegistros });
       renderDesdeCache();
     } catch (e) {
-      document.getElementById('tablaCuerpo').innerHTML = '<tr><td colspan="6" style="text-align:center;color:red;">Error al cargar datos del servidor.</td></tr>';
+      console.error('[ERROR] fetchAllData:', e);
+      document.getElementById('tablaCuerpo').innerHTML = '<tr><td colspan="6" style="text-align:center;color:red;">Error al cargar datos del servidor: ' + escaparHtml(e.message) + '</td></tr>';
     }
   }
 
@@ -612,13 +644,13 @@
   }
 
   function limpiarFiltros() {
-    const hoy = new Date();
+    const hoy = fechaHoyCaracas();
     document.getElementById('filterTexto').value = '';
     document.getElementById('filterSupervisor').value = 'TODOS';
     document.getElementById('filterEstado').value = 'TODOS';
-    document.getElementById('filterAno').value = hoy.getFullYear().toString();
-    document.getElementById('filterMes').value = hoy.getMonth().toString();
-    document.getElementById('filterDia').value = hoy.getDate().toString();
+    document.getElementById('filterAno').value = hoy.slice(0, 4);
+    document.getElementById('filterMes').value = String(parseInt(hoy.slice(5, 7), 10) - 1);
+    document.getElementById('filterDia').value = String(parseInt(hoy.slice(8, 10), 10));
     document.getElementById('filterDiaSemana').value = 'TODOS';
     syncFilters();
   }
@@ -719,19 +751,26 @@
     document.getElementById('userInfo').innerText = `Usuario: ${usuarioActual.usuario} | Rol: ${usuarioActual.rol} | Asignación: ${usuarioActual.supervisorAsignado || 'TODOS'}` + (avisoOffline ? ' | 📶 sin conexión (datos de caché)' : '');
     poblarDiasDelMes();
     poblarAnos();
-    const hoy = new Date();
-    document.getElementById('filterMes').value = hoy.getMonth().toString();
-    document.getElementById('filterDia').value = hoy.getDate().toString();
+    const hoy = fechaHoyCaracas();
+    document.getElementById('filterAno').value = hoy.slice(0, 4);
+    document.getElementById('filterMes').value = String(parseInt(hoy.slice(5, 7), 10) - 1);
+    document.getElementById('filterDia').value = 'TODOS';
+    document.getElementById('filterSupervisor').value = 'TODOS';
+    document.getElementById('filterEstado').value = 'TODOS';
+    document.getElementById('filterDiaSemana').value = 'TODOS';
     bindFilterEvents();
-    const cache = cargarCache();
-    if (cache && cache.vendedores && cache.vendedores.length > 0) {
-      allVendedores = cache.vendedores;
-      allRegistros = cache.registros || [];
-      poblarSupervisores(allVendedores);
-      renderDesdeCache();
-    } else {
-      fetchAllData();
+    syncFilters();
+    if (avisoOffline) {
+      const cache = cargarCache();
+      if (cache && cache.vendedores && cache.vendedores.length > 0) {
+        allVendedores = cache.vendedores;
+        allRegistros = cache.registros || [];
+        poblarSupervisores(allVendedores);
+        renderDesdeCache();
+      }
+      return;
     }
+    fetchAllData();
   }
 
   function mostrarLogin() {
@@ -876,6 +915,21 @@
     else if (accion === 'mapa') verMapa(nombre, btn.dataset.lat, btn.dataset.lng);
     else if (accion === 'obs') verComentario(nombre, btn.dataset.comentario);
   });
+
+  /* --- Refresco automático: al volver al panel o recuperar el foco, recarga datos frescos --- */
+  let ultimaActualizacion = 0;
+  function refrescoAutomatico() {
+    if (!usuarioActual || !navigator.onLine) return;
+    if (document.getElementById('panelAdmin').style.display !== 'block') return;
+    const ahora = Date.now();
+    if (ahora - ultimaActualizacion < 5000) return;
+    ultimaActualizacion = ahora;
+    fetchAllData();
+  }
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) refrescoAutomatico();
+  });
+  window.addEventListener('focus', refrescoAutomatico);
 
   window.onload = function() { verificarSesion(); };
 </script>

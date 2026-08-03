@@ -35,7 +35,8 @@ class VendedorModel {
     const vendedores = [];
     snap.forEach(doc => {
       const v = doc.data();
-      if (v.codigo.toLowerCase().includes(lower) || v.nombre.toLowerCase().includes(lower)) {
+      if (!/(^| )VACANTE/i.test(v.nombre || '') &&
+          (String(v.codigo || '').toLowerCase().includes(lower) || String(v.nombre || '').toLowerCase().includes(lower))) {
         vendedores.push({ id: doc.id, ...v });
       }
     });

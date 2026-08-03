@@ -13,10 +13,11 @@ class RegistroModel {
         return { id: idSolicitud, duplicado: true, error: null };
       }
 
+      const dia = String(fecha).split(' ')[0];
       const regsSnap = await tx.get(
         db.collection(REGISTROS)
-          .where('fecha', '>=', `${fecha} 00:00:00`)
-          .where('fecha', '<=', `${fecha} 23:59:59`)
+          .where('fecha', '>=', `${dia} 00:00:00`)
+          .where('fecha', '<=', `${dia} 23:59:59`)
       );
       const delVendedor = [];
       regsSnap.forEach(doc => {
@@ -55,23 +56,32 @@ class RegistroModel {
     const vendedoresSnap = await vendedoresQuery.get();
     const vendedores = [];
     vendedoresSnap.forEach(doc => vendedores.push(doc.data()));
+    const vendedoresActivos = vendedores.filter(v => !/(^| )VACANTE/i.test(v.nombre || ''));
 
     const registros = await this._getRegistrosPorRango(fecha, fecha);
 
     const regsByCodigo = {};
+    const regsByNombre = {};
     registros.forEach(r => {
-      if (!regsByCodigo[r.codigo]) regsByCodigo[r.codigo] = [];
-      regsByCodigo[r.codigo].push(r);
+      if (r.codigo) {
+        if (!regsByCodigo[r.codigo]) regsByCodigo[r.codigo] = [];
+        regsByCodigo[r.codigo].push(r);
+      }
+      const nombreKey = String(r.nombre || '').trim().toUpperCase();
+      if (nombreKey) {
+        if (!regsByNombre[nombreKey]) regsByNombre[nombreKey] = [];
+        regsByNombre[nombreKey].push(r);
+      }
     });
 
     const supMap = {};
-    vendedores.forEach(v => {
+    vendedoresActivos.forEach(v => {
       const sup = v.supervisor || 'SIN SUPERVISOR';
       if (!supMap[sup]) {
         supMap[sup] = { supervisor: sup, total_vendedores: 0, entradas_reg: 0, salidas_reg: 0 };
       }
       supMap[sup].total_vendedores++;
-      const regs = regsByCodigo[v.codigo] || [];
+      const regs = regsByCodigo[v.codigo] || regsByNombre[String(v.nombre || '').trim().toUpperCase()] || [];
       if (regs.some(r => r.tipo.toUpperCase().includes('ENTRADA'))) supMap[sup].entradas_reg++;
       if (regs.some(r => r.tipo.toUpperCase().includes('SALIDA'))) supMap[sup].salidas_reg++;
     });
@@ -83,6 +93,7 @@ class RegistroModel {
     const vendedoresSnap = await db.collection(VENDEDORES).get();
     let vendedores = [];
     vendedoresSnap.forEach(doc => vendedores.push(doc.data()));
+    vendedores = vendedores.filter(v => !/(^| )VACANTE/i.test(v.nombre || ''));
 
     if (supervisor !== 'TODOS') {
       vendedores = vendedores.filter(v => v.supervisor === supervisor);
@@ -97,14 +108,22 @@ class RegistroModel {
     const registros = await this._getRegistrosPorRango(fechaInicio, fechaFin);
 
     const regsByCodigo = {};
+    const regsByNombre = {};
     registros.forEach(r => {
-      if (!regsByCodigo[r.codigo]) regsByCodigo[r.codigo] = [];
-      regsByCodigo[r.codigo].push(r);
+      if (r.codigo) {
+        if (!regsByCodigo[r.codigo]) regsByCodigo[r.codigo] = [];
+        regsByCodigo[r.codigo].push(r);
+      }
+      const nombreKey = String(r.nombre || '').trim().toUpperCase();
+      if (nombreKey) {
+        if (!regsByNombre[nombreKey]) regsByNombre[nombreKey] = [];
+        regsByNombre[nombreKey].push(r);
+      }
     });
 
     const result = [];
     vendedores.forEach(v => {
-      const regs = regsByCodigo[v.codigo] || [];
+      const regs = regsByCodigo[v.codigo] || regsByNombre[String(v.nombre || '').trim().toUpperCase()] || [];
       const entrada = regs.find(r => r.tipo.toUpperCase().includes('ENTRADA'));
       const salida = regs.find(r => r.tipo.toUpperCase().includes('SALIDA'));
 
@@ -162,6 +181,9 @@ class RegistroModel {
       );
       const results = await Promise.all(promises);
       return results.flat();
+    }
+    if (codigos && codigos.length === 0) {
+      return [];
     }
     const snap = await db.collection(REGISTROS).get();
     const registros = [];
