@@ -45,11 +45,10 @@ exports.getVendedores = async (req, res) => {
 
 exports.getSupervisores = async (req, res) => {
   try {
-    const snap = await db.collection('usuarios').where('rol', '==', 'SUPERVISOR').get();
+    const snap = await db.collection('supervisores').orderBy('codigo').get();
     const supervisores = [];
     snap.forEach(doc => {
-      const u = doc.data();
-      supervisores.push({ codigo: u.codigo, nombre: u.usuario, gerente: u.gerente });
+      supervisores.push(doc.data());
     });
     res.json({ success: true, data: supervisores });
   } catch (err) {
