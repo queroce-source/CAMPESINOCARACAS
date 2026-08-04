@@ -505,7 +505,7 @@ function obtenerCodigoSupervisor(textoSupervisor) {
   }
 
   function renderCharts(supervisores, timeline) {
-    const supNombres = supervisores.map(s => nombreSupervisor(s.supervisor));
+    const supNombres = supervisores.map(s => s.supervisor);
     const supTotal = supervisores.map(s => s.total);
     const supEnt = supervisores.map(s => s.entradasReg);
     const supSal = supervisores.map(s => s.salidasReg);
