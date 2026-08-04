@@ -724,7 +724,7 @@ function obtenerCodigoSupervisor(textoSupervisor) {
     Array.from(set).sort().forEach(s => {
       const opt = document.createElement('option');
       opt.value = s;
-      opt.textContent = nombreSupervisor(s);
+      opt.textContent = `${s} - ${nombreSupervisor(s)}`;
       sel.appendChild(opt);
     });
     sel.value = actual;
