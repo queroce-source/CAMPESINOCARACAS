@@ -232,12 +232,32 @@
   let allRegistros = [];
 
   /* --- Utilidades --- */
-  function obtenerCodigoSupervisor(textoSupervisor) {
-    if (!textoSupervisor) return 'S/C';
-    const trimmed = String(textoSupervisor).trim();
-    if (trimmed.toUpperCase() === 'SIN SUPERVISOR' || trimmed.toUpperCase() === 'S/C') return 'SIN SUP';
-    return trimmed.split(' ')[0] || trimmed;
-  }
+  const SUPERVISORES_MAP = {
+  'CGV': 'YOHANA MARQUEZ',
+  'CS0': 'ISMAR BENCOMO',
+  'CS1': 'VACANTE',
+  'CS2': 'SHEYLA RIVAS',
+  'CS3': 'YUSMERY SALAZAR',
+  'CS4': 'AMALOA PINEDA',
+  'CS5': 'LUIS GUARAMATO',
+  'CS6': 'VACANTE',
+  'CS7': 'YEISSY DELGADO',
+  'CS8': 'ALIET RODRIGUEZ',
+  'CS9': 'VACANTE',
+};
+
+function nombreSupervisor(codigo) {
+  if (!codigo || codigo === 'TODOS') return 'TODOS';
+  if (codigo === 'SIN SUPERVISOR') return 'SIN SUPERVISOR';
+  return SUPERVISORES_MAP[codigo] || codigo;
+}
+
+function obtenerCodigoSupervisor(textoSupervisor) {
+  if (!textoSupervisor) return 'S/C';
+  const trimmed = String(textoSupervisor).trim();
+  if (trimmed.toUpperCase() === 'SIN SUPERVISOR' || trimmed.toUpperCase() === 'S/C') return 'SIN SUP';
+  return SUPERVISORES_MAP[trimmed] || trimmed;
+}
 
   function formatearHora(fechaStr) {
     if (!fechaStr) return '';
@@ -450,7 +470,7 @@
       tr.innerHTML = `
         <td><strong>${escaparHtml(r.codigo)}</strong></td>
         <td>${escaparHtml(r.nombre)}</td>
-        <td>${escaparHtml(r.supervisor || '-')}</td>
+        <td>${escaparHtml(nombreSupervisor(r.supervisor) || '-')}</td>
         <td>${generarHtmlEstado(r.entrada, r.nombre)}</td>
         <td>${generarHtmlEstado(r.salida, r.nombre)}</td>
         <td><span class="badge-pct ${obtenerClaseBadgePct(pct)}">${pct}%</span></td>
@@ -473,7 +493,7 @@
       const pctSal = s.total > 0 ? Math.round((s.salidasReg / s.total) * 100) : 0;
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><strong>${escaparHtml(s.supervisor)}</strong></td>
+        <td><strong>${escaparHtml(nombreSupervisor(s.supervisor))}</strong></td>
         <td>${s.total}</td>
         <td><span style="color:#16a34a;font-weight:bold;">${s.entradasReg}</span> / <span style="color:#dc2626;">${entPend}</span></td>
         <td><span style="color:#2563eb;font-weight:bold;">${s.salidasReg}</span> / <span style="color:#ea580c;">${salPend}</span></td>
@@ -485,7 +505,7 @@
   }
 
   function renderCharts(supervisores, timeline) {
-    const supNombres = supervisores.map(s => obtenerCodigoSupervisor(s.supervisor));
+    const supNombres = supervisores.map(s => nombreSupervisor(s.supervisor));
     const supTotal = supervisores.map(s => s.total);
     const supEnt = supervisores.map(s => s.entradasReg);
     const supSal = supervisores.map(s => s.salidasReg);
@@ -507,7 +527,7 @@
         categoryPercentage: 0.55, barPercentage: 0.85,
         plugins: {
           legend: { position: 'top' },
-          tooltip: { callbacks: { title: function(ctx) { return supervisores[ctx[0].dataIndex]?.supervisor || ''; } } }
+          tooltip: { callbacks: { title: function(ctx) { return nombreSupervisor(supervisores[ctx[0].dataIndex]?.supervisor) || ''; } } }
         },
         scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, x: { ticks: { maxRotation: 0, font: { weight: 'bold' } } } }
       }
@@ -704,7 +724,7 @@
     Array.from(set).sort().forEach(s => {
       const opt = document.createElement('option');
       opt.value = s;
-      opt.textContent = s;
+      opt.textContent = nombreSupervisor(s);
       sel.appendChild(opt);
     });
     sel.value = actual;
@@ -748,7 +768,7 @@
   function mostrarPanel(avisoOffline) {
     document.getElementById('vistaLogin').style.display = 'none';
     document.getElementById('panelAdmin').style.display = 'block';
-    document.getElementById('userInfo').innerText = `Usuario: ${usuarioActual.usuario} | Rol: ${usuarioActual.rol} | Asignación: ${usuarioActual.supervisorAsignado || 'TODOS'}` + (avisoOffline ? ' | 📶 sin conexión (datos de caché)' : '');
+    document.getElementById('userInfo').innerText = `Usuario: ${usuarioActual.usuario} | Rol: ${usuarioActual.rol} | Asignación: ${nombreSupervisor(usuarioActual.supervisorAsignado) || 'TODOS'}` + (avisoOffline ? ' | 📶 sin conexión (datos de caché)' : '');
     poblarDiasDelMes();
     poblarAnos();
     const hoy = fechaHoyCaracas();

@@ -43,6 +43,20 @@ exports.getVendedores = async (req, res) => {
   }
 };
 
+exports.getSupervisores = async (req, res) => {
+  try {
+    const snap = await db.collection('usuarios').where('rol', '==', 'SUPERVISOR').get();
+    const supervisores = [];
+    snap.forEach(doc => {
+      const u = doc.data();
+      supervisores.push({ codigo: u.codigo, nombre: u.usuario, gerente: u.gerente });
+    });
+    res.json({ success: true, data: supervisores });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 exports.getDashboard = async (req, res) => {
   try {
     const { fecha, supervisor } = req.query;

@@ -68,7 +68,27 @@
 <script>
   let usuarioActual = null;
 
-  function escaparHtml(s) {
+  const SUPERVISORES_MAP = {
+  'CGV': 'YOHANA MARQUEZ',
+  'CS0': 'ISMAR BENCOMO',
+  'CS1': 'VACANTE',
+  'CS2': 'SHEYLA RIVAS',
+  'CS3': 'YUSMERY SALAZAR',
+  'CS4': 'AMALOA PINEDA',
+  'CS5': 'LUIS GUARAMATO',
+  'CS6': 'VACANTE',
+  'CS7': 'YEISSY DELGADO',
+  'CS8': 'ALIET RODRIGUEZ',
+  'CS9': 'VACANTE',
+};
+
+function nombreSupervisor(codigo) {
+  if (!codigo || codigo === 'TODOS') return 'TODOS';
+  if (codigo === 'SIN SUPERVISOR') return 'SIN SUPERVISOR';
+  return SUPERVISORES_MAP[codigo] || codigo;
+}
+
+function escaparHtml(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -80,7 +100,7 @@
   function mostrarPanel() {
     document.getElementById('vistaLogin').style.display = 'none';
     document.getElementById('panelAdmin').style.display = 'block';
-    document.getElementById('userInfo').innerText = `Usuario: ${usuarioActual.usuario} | Rol: ${usuarioActual.rol} | Asignación: ${usuarioActual.supervisorAsignado || 'TODOS'}`;
+    document.getElementById('userInfo').innerText = `Usuario: ${usuarioActual.usuario} | Rol: ${usuarioActual.rol} | Asignación: ${nombreSupervisor(usuarioActual.supervisorAsignado) || 'TODOS'}`;
     cargarTodo();
   }
 
@@ -207,7 +227,7 @@
         tr.innerHTML = `
           <td><strong>${escaparHtml(r.codigo)}</strong></td>
           <td>${escaparHtml(r.nombre)}</td>
-          <td>${escaparHtml(r.supervisor || '-')}</td>
+          <td>${escaparHtml(nombreSupervisor(r.supervisor) || '-')}</td>
           <td>${generarHtmlEstado(r.entrada, r.nombre)}</td>
           <td>${generarHtmlEstado(r.salida, r.nombre)}</td>
         `;

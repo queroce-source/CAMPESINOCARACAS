@@ -9,6 +9,7 @@ router.post('/auth/logout', asistenciaController.logout);
 router.get('/auth/me', requireAuth, asistenciaController.me);
 
 router.get('/vendedores', vendedores, asistenciaController.getVendedores);
+router.get('/supervisores', asistenciaController.getSupervisores);
 
 router.get('/registros/dashboard', requireAdmin, admin, asistenciaController.getDashboard);
 router.get('/registros/detalle', requireAdmin, admin, asistenciaController.getDetalle);
