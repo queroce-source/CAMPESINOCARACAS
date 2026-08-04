@@ -85,6 +85,8 @@ async function seedDatabase() {
   console.log('Insertando usuarios...');
   const usuarios = [
 	{ usuario: 'YOHANA MARQUEZ', clave: 'ADMIN2026*', rol: 'ADMIN', supervisorAsignado: 'TODOS' },
+	{ usuario: 'HEIBER CHACON', clave: '30052150', rol: 'ADMIN', supervisorAsignado: 'TODOS' },
+	{ usuario: 'CARLOS EMILIO QUERO', clave: 'ADMIN2026*', rol: 'ADMIN', supervisorAsignado: 'TODOS' },
 	{ usuario: 'ISMAR BENCOMO', clave: 'CEC2026*', rol: 'SUPERVISOR', codigo: 'CS0', gerente: 'CGV', supervisorAsignado: 'CS0' },
 	{ usuario: 'ALIET RODRIGUEZ', clave: 'CEC2026*', rol: 'SUPERVISOR', codigo: 'CS8', gerente: 'CGV', supervisorAsignado: 'CS8' },
 	{ usuario: 'YUSMERY SALAZAR', clave: 'CEC2026*', rol: 'SUPERVISOR', codigo: 'CS3', gerente: 'CGV', supervisorAsignado: 'CS3' },
