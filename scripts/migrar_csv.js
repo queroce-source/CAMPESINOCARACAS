@@ -79,14 +79,28 @@ async function main() {
     const fecha = parseDate(r[0]);
     if (!fecha) { skipped++; continue; }
 
+    const codigo = (r[2] || '').trim();
+    const nombre = (r[3] || '').trim();
+
+    let supervisor = '';
+    try {
+      const vDoc = await db.collection('vendedores').doc(codigo).get();
+      if (vDoc.exists) {
+        supervisor = vDoc.data().supervisor || '';
+      }
+    } catch (e) {
+      supervisor = '';
+    }
+
     const record = {
-      codigo: (r[2] || '').trim(),
-      nombre: (r[3] || '').trim(),
+      codigo,
+      nombre,
       tipo: (r[1] || '').trim(),
       comentario: (r[8] || '').trim(),
       latitud: parseCoord(r[4]),
       longitud: parseCoord(r[5]),
       foto: (r[7] || '').trim() || null,
+      supervisor,
       fecha,
     };
 

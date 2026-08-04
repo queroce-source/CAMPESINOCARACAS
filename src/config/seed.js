@@ -12,7 +12,6 @@ async function clearCollection(name) {
 
 async function seedDatabase() {
   console.log('Limpiando datos existentes...');
-  await clearCollection('registros');
   await clearCollection('usuarios');
   await clearCollection('vendedores');
 
