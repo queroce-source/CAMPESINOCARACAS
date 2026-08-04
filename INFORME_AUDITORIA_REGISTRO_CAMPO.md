@@ -1,6 +1,6 @@
 # INFORME FINAL — AUDITORÍA Y OPTIMIZACIÓN DEL MÓDULO "REGISTRO DE CAMPO"
 
-**Proyecto:** `CONTROLES DE ASISTENCIA\CARACAS` (réplica de la auditoría de BARINAS, adaptada a la zona Caracas)
+**Proyecto:** `CONTROLES DE ASISTENCIA\CARACAS` (réplica de la auditoría de BARINAS, adaptada a la zona Maracay-Puerto La Cruz)
 **Fecha:** 31/07/2026
 **Resultado:** ✅ Implementación completa, probada y commiteada.
 
@@ -27,7 +27,7 @@ Las 16 vulnerabilidades y 8 fricciones funcionales detectadas en el plan fueron 
 | V4 | Sesión editable por localStorage | Cookie `admin_session` HttpOnly + `GET /api/auth/me` real; localStorage es solo caché | integración: logout invalida |
 | V5 | Sin rate limit | Login 5/15 min, captura 30/h, registros 10/min, vendedores 60/min, admin 120/min | integración: login satura con 429 |
 | V6 | Body 50 mb / data URL | `express.json` limit 4 mb; foto JPEG ≤ 1 MB + hash | unit: foto gigante rechazada |
-| V7 | GPS y fecha sin validar | Bbox Caracas (10.25–10.65 / -67.15 a -66.60), accuracy ≤ 500 m, desfase reloj < 5 min | unit + integración: 0,0 y fuera de zona → 400 |
+| V7 | GPS y fecha sin validar | Bbox zona Maracay-Puerto La Cruz (10.00–10.80 / -67.80 a -64.50), accuracy ≤ 500 m, desfase reloj < 5 min | unit + integración: 0,0 y fuera de zona → 400 |
 | V8 | Tipo decidido por el cliente | `tipo` derivado de la hora del servidor (UTC-4, corte 13:00) | unit: tipoServidor |
 | V9 | Sin idempotencia | `set(idSolicitud)` como ID de documento | integración: duplicado → `duplicado:true` |
 | V10 | XSS almacenado | `escapeHtml()` + delegación de eventos en admin/login | revisión de vistas |
@@ -62,7 +62,7 @@ Las 16 vulnerabilidades y 8 fricciones funcionales detectadas en el plan fueron 
 - **Unitarias** (`node --env-file .env --test "test/*.test.js"`): **25/25 OK** (scrypt, HMAC, sanitización, GPS, foto, fechas, secuencia).
 - **Integración** (`node --env-file .env test/integracion.js`): **todos los flujos OK** contra Firestore real con limpieza de datos de prueba:
   - protección de rutas (401/200), login/logout, `/me`
-  - token de captura inválido/reutilizado (409), fecha errónea (400), GPS 0,0 y fuera de Caracas (400), foto no JPEG (400)
+  - token de captura inválido/reutilizado (409), fecha errónea (400), GPS 0,0 y fuera de la zona (400), foto no JPEG (400)
   - registro válido (200), idempotencia por `idSolicitud` (`duplicado:true`), rate limit (429)
 - **Servido estático**: `/`, `/index.html`, `/admin.html`, `/login.html` responden 200 `text/html`.
 - **Sintaxis JS de las vistas**: bloques `script` de las 3 vistas validados con `node --check`.

@@ -85,9 +85,11 @@ test('sanitizarTexto: vacío y nulo', () => {
   assert.strictEqual(sanitizarTexto(undefined), '');
 });
 
-test('validarGeo: coordenadas válidas en Caracas', () => {
+test('validarGeo: coordenadas válidas en la zona Maracay-Puerto La Cruz', () => {
   assert.deepStrictEqual(validarGeo(10.4806, -66.9036, 50), { ok: true });
   assert.deepStrictEqual(validarGeo(10.25, -67.15, 500), { ok: true });
+  assert.deepStrictEqual(validarGeo(10.247, -67.596, 50), { ok: true });
+  assert.deepStrictEqual(validarGeo(10.217, -64.617, 50), { ok: true });
 });
 
 test('validarGeo: rechaza 0,0 y no numéricos', () => {
@@ -102,9 +104,11 @@ test('validarGeo: rechaza rangos inválidos', () => {
   assert.strictEqual(validarGeo(10.4, -190, 50).ok, false);
 });
 
-test('validarGeo: rechaza fuera de la zona de Caracas', () => {
+test('validarGeo: rechaza fuera de la zona de operación', () => {
   assert.strictEqual(validarGeo(8.6226, -70.2078, 50).ok, false);
   assert.strictEqual(validarGeo(5.0, -60.0, 50).ok, false);
+  assert.strictEqual(validarGeo(10.4, -68.5, 50).ok, false);
+  assert.strictEqual(validarGeo(10.4, -64.0, 50).ok, false);
 });
 
 test('validarGeo: rechaza precisión insuficiente o ausente', () => {

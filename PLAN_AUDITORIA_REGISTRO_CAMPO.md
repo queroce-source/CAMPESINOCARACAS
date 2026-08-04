@@ -2,7 +2,7 @@
 
 **Proyecto:** `CONTROLES DE ASISTENCIA\CARACAS`
 **Fecha:** 31/07/2026
-**Estado:** ✅ Aprobado — implementación completa (réplica de la auditoría BARINAS adaptada a la zona Caracas).
+**Estado:** ✅ Aprobado — implementación completa (réplica de la auditoría BARINAS adaptada a la zona Maracay a Puerto La Cruz).
 
 ---
 
@@ -72,14 +72,14 @@
 9. **Headers de seguridad** — middleware propio: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Content-Security-Policy` compatible con CDNs e iframes usados.
 10. **Sanitización** — `sanitizarTexto()` (strip de etiquetas y caracteres de control, límite 500 chars) en servidor + **`escapeHtml()`** en el frontend admin.
 11. **Protección de datos admin** — rutas `GET /api/registros/*` exigen sesión; `GET /api/vendedores` (usado por el registro de campo) queda público con rate limit.
-12. **Validación GPS** — lat ∈ [-90,90], lng ∈ [-180,180], dentro del **bbox de Caracas** (lat 10.25–10.65, lng -67.15 a -66.60), `accuracy` requerido ≤ 500 m (el cliente bloquea hasta ≤ 150 m).
+12. **Validación GPS** — lat ∈ [-90,90], lng ∈ [-180,180], dentro del **bbox de la zona Maracay-Puerto La Cruz** (lat 10.00–10.80, lng -67.80 a -64.50), `accuracy` requerido ≤ 500 m (el cliente bloquea hasta ≤ 150 m).
 
 ### 2.2 Cambios por archivo
 
 **Backend (nuevos)**
 | Archivo | Contenido |
 |---|---|
-| `src/config/security.js` | `hashClave`/`verificarClave` (scrypt); `firmarToken`/`verificarToken` (HMAC); `fechaHoraCaracas()`; `sanitizarTexto()`; bbox Caracas; `validarGeo()`. |
+| `src/config/security.js` | `hashClave`/`verificarClave` (scrypt); `firmarToken`/`verificarToken` (HMAC); `fechaHoraCaracas()`; `sanitizarTexto()`; bbox Maracay-Puerto La Cruz; `validarGeo()`. |
 | `src/config/rateLimit.js` | Middleware de limitación por IP en memoria. |
 | `src/middleware/auth.js` | `requireAuth`, `requireAdmin`, `obtenerCookie`. |
 | `src/models/TokenModel.js` | `emitir`, `verificarYConsumir` (single-use, TTL). |
@@ -109,7 +109,7 @@
 | Módulo | Casos |
 |---|---|
 | `test/security.test.js` | scrypt hash/verify; HMAC token (alterado/expirado → rechazo); sanitización de `<script>`, HTML y control chars. |
-| `test/geo.test.js` | lat/lng válidas, inválidas (NaN, fuera de rango, 0,0, fuera de bbox Caracas, accuracy ausente/excesivo). |
+| `test/geo.test.js` | lat/lng válidas, inválidas (NaN, fuera de rango, 0,0, fuera de bbox de la zona, accuracy ausente/excesivo). |
 | `test/fecha.test.js` | `fechaHoraCaracas()`; tolerancia 5 min; rechazo de fechas falsas. |
 | `test/tokens.test.js` | Token expirado, reutilizado y con codigo distinto → rechazo (con mock del modelo). |
 

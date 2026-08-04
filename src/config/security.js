@@ -12,10 +12,10 @@ const TIPO_ENTRADA = 'ENTRADA (Mañana)';
 const TIPO_SALIDA = 'SALIDA (Tarde)';
 
 const ZONA_BBOX = {
-  latMin: 10.25,
-  latMax: 10.65,
-  lngMin: -67.15,
-  lngMax: -66.60
+  latMin: 10.00,
+  latMax: 10.80,
+  lngMin: -67.80,
+  lngMax: -64.50
 };
 
 const GPS_ACCURACY_MAX = 500;

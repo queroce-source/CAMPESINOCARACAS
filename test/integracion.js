@@ -127,7 +127,7 @@ const idAzar = () => 'it_' + crypto.randomBytes(8).toString('hex').slice(0, 12);
 
       const t3 = await emitirToken();
       r = await req('POST', '/api/registros', baseReg({ capturaToken: t3.token, fechaDispositivo: t3.horaServidor, latitud: 8.6226, longitud: -70.2078 }));
-      check('coordenadas fuera de Caracas → 400', r.status === 400 && r.data && !r.data.success);
+      check('coordenadas fuera de la zona de operación → 400', r.status === 400 && r.data && !r.data.success);
 
       const t4 = await emitirToken();
       r = await req('POST', '/api/registros', baseReg({ capturaToken: t4.token, fechaDispositivo: t4.horaServidor, fotoBase64: Buffer.from('no es jpeg').toString('base64') }));

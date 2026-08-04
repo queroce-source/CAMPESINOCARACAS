@@ -15,7 +15,7 @@ Instrucciones: marcar ✅ cada ítem. Ejecutar sobre un teléfono Android/iOS co
 ## B. GPS
 - [ ] Con el GPS encendido y a la intemperie, la marcación se habilita (precisión ≤ 150 m).
 - [ ] Con GPS lento/impreciso se muestra un mensaje y NO se habilita el envío.
-- [ ] Fuera del bbox de Caracas se rechaza con mensaje claro.
+- [ ] Fuera del bbox de la zona de operación (Maracay-Puerto La Cruz) se rechaza con mensaje claro.
 
 ## C. Offline
 - [ ] En modo avión, la marcación queda en cola (badge visible).

@@ -353,7 +353,7 @@ exports.crearRegistro = async (req, res) => {
         COORDENADAS_INVALIDAS: 'Coordenadas GPS inválidas.',
         COORDENADAS_CERO: 'La ubicación GPS no fue capturada.',
         COORDENADAS_FUERA_RANGO: 'Las coordenadas están fuera de rango válido.',
-        COORDENADAS_FUERA_ZONA: 'La ubicación GPS está fuera de la zona de operación (Caracas).',
+        COORDENADAS_FUERA_ZONA: 'La ubicación GPS está fuera de la zona de operación (Maracay a Puerto La Cruz).',
         PRECISION_GPS_INSUFICIENTE: 'La precisión del GPS es insuficiente. Acércate a un lugar abierto e intenta nuevamente.'
       };
       return res.status(400).json({ success: false, message: mensajes[geo.motivo] || 'Ubicación GPS no válida.' });
