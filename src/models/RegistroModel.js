@@ -56,7 +56,7 @@ class RegistroModel {
     const vendedoresSnap = await vendedoresQuery.get();
     const vendedores = [];
     vendedoresSnap.forEach(doc => vendedores.push(doc.data()));
-    const vendedoresActivos = vendedores.filter(v => !/(^| )VACANTE/i.test(v.nombre || ''));
+    const vendedoresActivos = vendedores.filter(v => !/(^| )VACANTE/i.test(v.nombre || '') && String(v.codigo || '') !== 'CGV');
 
     const registros = await this._getRegistrosPorRango(fecha, fecha);
 
@@ -93,7 +93,7 @@ class RegistroModel {
     const vendedoresSnap = await db.collection(VENDEDORES).get();
     let vendedores = [];
     vendedoresSnap.forEach(doc => vendedores.push(doc.data()));
-    vendedores = vendedores.filter(v => !/(^| )VACANTE/i.test(v.nombre || ''));
+    vendedores = vendedores.filter(v => !/(^| )VACANTE/i.test(v.nombre || '') && String(v.codigo || '') !== 'CGV');
 
     if (supervisor !== 'TODOS') {
       vendedores = vendedores.filter(v => v.supervisor === supervisor);
