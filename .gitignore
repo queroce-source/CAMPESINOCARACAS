@@ -7,3 +7,5 @@ uploads/*
 
 datos.csv
 registro_de_campo.csv
+data/*.csv
+!data/.gitkeep

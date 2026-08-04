@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node --env-file .env server.js",
     "seed": "node --env-file .env src/config/seed.js",
+    "importar:estructura": "node --env-file .env scripts/importar_estructura.js",
     "dev": "node --env-file .env --watch server.js",
     "test": "node --env-file .env --test \"test/*.test.js\""
   },
