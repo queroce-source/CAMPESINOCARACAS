@@ -195,6 +195,38 @@ class RegistroModel {
     return registros;
   }
 
+  static async getExportacionMes({ fechaInicio, fechaFin, supervisor }) {
+    let codigos = null;
+    if (supervisor && supervisor !== 'TODOS') {
+      const vendedoresSnap = await db.collection(VENDEDORES)
+        .where('supervisor', '==', supervisor).get();
+      const codigosSet = [];
+      vendedoresSnap.forEach(doc => {
+        const v = doc.data();
+        if (!/(^| )VACANTE/i.test(v.nombre || '') && String(v.codigo || '') !== 'CGV') codigosSet.push(v.codigo);
+      });
+      codigos = codigosSet;
+    }
+
+    const registros = await this._getRegistrosPorRango(fechaInicio, fechaFin);
+    const filas = [];
+    registros.forEach(r => {
+      if (codigos && !codigos.includes(r.codigo)) return;
+      filas.push({
+        codigo: r.codigo || '',
+        nombre: r.nombre || '',
+        supervisor: r.supervisor || '',
+        tipo: r.tipo || '',
+        fecha: r.fecha || '',
+        comentario: r.comentario || '',
+        latitud: r.latitud != null ? r.latitud : '',
+        longitud: r.longitud != null ? r.longitud : ''
+      });
+    });
+    filas.sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
+    return filas;
+  }
+
   static async _getRegistrosPorRango(fechaInicio, fechaFin) {
     const startDate = `${fechaInicio} 00:00:00`;
     const endDate = `${fechaFin} 23:59:59`;

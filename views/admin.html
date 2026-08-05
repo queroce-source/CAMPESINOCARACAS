@@ -43,6 +43,7 @@
       </div>
       <div class="btn-group">
         <button class="btn-panel btn-refresh" onclick="cargarTodo()">🔄 Actualizar</button>
+        <button class="btn-panel btn-export" onclick="descargarExcel()">⬇️ Descargar Excel</button>
         <button class="btn-panel btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
       </div>
     </div>
@@ -678,6 +679,43 @@ function obtenerCodigoSupervisor(textoSupervisor) {
   async function cargarTodo() {
     document.getElementById('tablaCuerpo').innerHTML = '<tr><td colspan="6" style="text-align:center;">Actualizando información...</td></tr>';
     await fetchAllData();
+  }
+
+  async function descargarExcel() {
+    const hoy = fechaHoyCaracas();
+    let anio = document.getElementById('filterAno').value;
+    let mes = document.getElementById('filterMes').value;
+    if (anio === 'TODOS') anio = hoy.slice(0, 4);
+    if (mes === 'TODOS') mes = String(parseInt(hoy.slice(5, 7), 10) - 1);
+    let supervisor = document.getElementById('filterSupervisor').value;
+    if (supervisor === 'TODOS') supervisor = '';
+    const btn = document.querySelector('.btn-export');
+    const textoOriginal = btn.innerHTML;
+    btn.innerHTML = '⏳';
+    btn.disabled = true;
+    try {
+      const url = `/api/registros/exportar-excel?anio=${encodeURIComponent(anio)}&mes=${encodeURIComponent(mes)}${supervisor ? '&supervisor=' + encodeURIComponent(supervisor) : ''}`;
+      const res = await fetch(url, { credentials: 'same-origin' });
+      if (!res.ok) {
+        let msg = 'Error al generar el Excel.';
+        try { const j = await res.json(); if (j.message) msg = j.message; } catch (e) {}
+        alert(msg);
+        return;
+      }
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `asistencia_${anio}_${String(parseInt(mes, 10) + 1).padStart(2, '0')}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(link.href);
+    } catch (e) {
+      alert('Error de conexión al generar el Excel.');
+    } finally {
+      btn.innerHTML = textoOriginal;
+      btn.disabled = false;
+    }
   }
 
   /* --- Eventos reactivos --- */

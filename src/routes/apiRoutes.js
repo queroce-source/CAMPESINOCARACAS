@@ -15,6 +15,7 @@ router.get('/registros/dashboard', requireAdmin, admin, asistenciaController.get
 router.get('/registros/detalle', requireAdmin, admin, asistenciaController.getDetalle);
 router.get('/registros/graficos', requireAdmin, admin, asistenciaController.getGraficos);
 router.get('/registros/all', requireAdmin, admin, asistenciaController.getAllRegistros);
+router.get('/registros/exportar-excel', requireAdmin, admin, asistenciaController.exportarExcel);
 
 router.post('/registros/captura-token', captura, asistenciaController.emitirCapturaToken);
 router.post('/registros', registros, asistenciaController.crearRegistro);

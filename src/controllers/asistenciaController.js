@@ -300,6 +300,53 @@ exports.emitirCapturaToken = async (req, res) => {
   }
 };
 
+exports.exportarExcel = async (req, res) => {
+  try {
+    const XLSX = require('xlsx');
+    const { anio, mes, supervisor } = req.query;
+
+    const hoy = fechaCaracas();
+    const anioUsar = anio || hoy.slice(0, 4);
+    const mesUsar = mes != null ? String(parseInt(mes, 10) + 1).padStart(2, '0') : hoy.slice(5, 7);
+    const ultimoDia = new Date(parseInt(anioUsar, 10), parseInt(mesUsar, 10), 0).getDate();
+
+    const fechaInicio = `${anioUsar}-${mesUsar}-01`;
+    const fechaFin = `${anioUsar}-${mesUsar}-${String(ultimoDia).padStart(2, '0')}`;
+
+    const sup = (supervisor && supervisor !== 'TODOS') ? supervisor : 'TODOS';
+    const filas = await RegistroModel.getExportacionMes({ fechaInicio, fechaFin, supervisor: sup });
+
+    const nombreMes = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][parseInt(mesUsar, 10) - 1];
+    const hoja = XLSX.utils.json_to_sheet(filas.map(f => ({
+      'Código': f.codigo,
+      'Nombre': f.nombre,
+      'Supervisor': f.supervisor,
+      'Tipo': f.tipo,
+      'Fecha': f.fecha,
+      'Comentario': f.comentario,
+      'Latitud': f.latitud,
+      'Longitud': f.longitud
+    })));
+
+    hoja['!cols'] = [
+      { wch: 8 }, { wch: 25 }, { wch: 10 }, { wch: 20 },
+      { wch: 22 }, { wch: 40 }, { wch: 12 }, { wch: 12 }
+    ];
+
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, hoja, nombreMes);
+
+    const buffer = XLSX.write(libro, { type: 'buffer', bookType: 'xlsx' });
+    const nombreArchivo = `asistencia_${anioUsar}_${mesUsar}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`);
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 exports.crearRegistro = async (req, res) => {
   try {
     const {
