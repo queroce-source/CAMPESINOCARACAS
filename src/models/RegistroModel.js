@@ -4,6 +4,15 @@ const { TIPO_ENTRADA, TIPO_SALIDA } = require('../config/security');
 const VENDEDORES = 'vendedores';
 const REGISTROS = 'registros';
 
+function normalizarNombre(texto) {
+  return String(texto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 class RegistroModel {
   static async crearConValidacionSecuencia({ idSolicitud, codigo, fecha, ...datos }) {
     const ref = db.collection(REGISTROS).doc(idSolicitud);
@@ -214,12 +223,15 @@ class RegistroModel {
     const codigoPorNombre = {};
     vendedoresSnap.forEach(doc => {
       const v = doc.data();
-      if (v.nombre) codigoPorNombre[String(v.nombre).trim().toUpperCase()] = v.codigo;
+      const nombre = normalizarNombre(v.nombre);
+      if (nombre && !/(^| )VACANTE/i.test(v.nombre || '') && String(v.codigo || '') !== 'CGV' && v.codigo) {
+        codigoPorNombre[nombre] = v.codigo;
+      }
     });
 
     const filas = [];
     registros.forEach(r => {
-      const codigoReg = r.codigo || codigoPorNombre[String(r.nombre || '').trim().toUpperCase()] || '';
+      const codigoReg = r.codigo || codigoPorNombre[normalizarNombre(r.nombre)] || '';
       if (codigos && !codigos.includes(codigoReg)) return;
       filas.push({
         codigo: codigoReg,
