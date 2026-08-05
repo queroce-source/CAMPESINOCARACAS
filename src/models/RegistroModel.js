@@ -209,11 +209,20 @@ class RegistroModel {
     }
 
     const registros = await this._getRegistrosPorRango(fechaInicio, fechaFin);
+
+    const vendedoresSnap = await db.collection(VENDEDORES).get();
+    const codigoPorNombre = {};
+    vendedoresSnap.forEach(doc => {
+      const v = doc.data();
+      if (v.nombre) codigoPorNombre[String(v.nombre).trim().toUpperCase()] = v.codigo;
+    });
+
     const filas = [];
     registros.forEach(r => {
-      if (codigos && !codigos.includes(r.codigo)) return;
+      const codigoReg = r.codigo || codigoPorNombre[String(r.nombre || '').trim().toUpperCase()] || '';
+      if (codigos && !codigos.includes(codigoReg)) return;
       filas.push({
-        codigo: r.codigo || '',
+        codigo: codigoReg,
         nombre: r.nombre || '',
         supervisor: r.supervisor || '',
         tipo: r.tipo || '',
