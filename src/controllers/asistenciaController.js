@@ -2,6 +2,7 @@ const VendedorModel = require('../models/VendedorModel');
 const RegistroModel = require('../models/RegistroModel');
 const UsuarioModel = require('../models/UsuarioModel');
 const TokenModel = require('../models/TokenModel');
+const { db } = require('../config/firebase');
 const cache = require('../config/cache');
 const {
   hashClave,
@@ -62,24 +63,24 @@ exports.getDashboard = async (req, res) => {
     const targetDate = fecha || fechaCaracas();
     const sup = supervisor || 'TODOS';
 
-    const rows = await RegistroModel.getDashboard(targetDate, sup);
-    let totalVendedores = 0, entradasReg = 0, salidasReg = 0;
+    const cacheKey = `dashboard_${targetDate}_${sup}`;
+    const data = await cache.get(cacheKey, 30000, async () => {
+      const rows = await RegistroModel.getDashboard(targetDate, sup);
+      let totalVendedores = 0, entradasReg = 0, salidasReg = 0;
 
-    const supervisores = rows.map(r => {
-      totalVendedores += r.total_vendedores;
-      entradasReg += r.entradas_reg;
-      salidasReg += r.salidas_reg;
+      const supervisores = rows.map(r => {
+        totalVendedores += r.total_vendedores;
+        entradasReg += r.entradas_reg;
+        salidasReg += r.salidas_reg;
+        return {
+          supervisor: r.supervisor || 'SIN SUPERVISOR',
+          total: r.total_vendedores,
+          entradasReg: r.entradas_reg,
+          salidasReg: r.salidas_reg
+        };
+      });
+
       return {
-        supervisor: r.supervisor || 'SIN SUPERVISOR',
-        total: r.total_vendedores,
-        entradasReg: r.entradas_reg,
-        salidasReg: r.salidas_reg
-      };
-    });
-
-    res.json({
-      success: true,
-      data: {
         kpi: {
           totalVendedores,
           entradasReg,
@@ -90,8 +91,10 @@ exports.getDashboard = async (req, res) => {
           pctSalida: totalVendedores > 0 ? Math.round((salidasReg / totalVendedores) * 100) : 0
         },
         supervisores
-      }
+      };
     });
+
+    res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -143,42 +146,50 @@ exports.getGraficos = async (req, res) => {
     const { fecha } = req.query;
     const targetDate = fecha || fechaCaracas();
 
-    const [dashboardRows, timelineRows] = await Promise.all([
-      RegistroModel.getDashboard(targetDate, 'TODOS'),
-      RegistroModel.getGraficosTimeline(targetDate)
-    ]);
+    const cacheKey = `graficos_${targetDate}`;
+    const data = await cache.get(cacheKey, 30000, async () => {
+      const { supervisores, timeline } = await RegistroModel.getEstadisticas(targetDate);
 
-    const supervisores = dashboardRows.map(r => ({
-      supervisor: r.supervisor || 'SIN SUPERVISOR',
-      total: r.total_vendedores,
-      entradasReg: r.entradas_reg,
-      salidasReg: r.salidas_reg
-    }));
+      const horas = Array.from({ length: 15 }, (_, i) =>
+        String(i + 6).padStart(2, '0') + ':00'
+      );
+      const entradas = new Array(15).fill(0);
+      const salidas = new Array(15).fill(0);
 
-    const horas = Array.from({ length: 15 }, (_, i) =>
-      String(i + 6).padStart(2, '0') + ':00'
-    );
-    const entradas = new Array(15).fill(0);
-    const salidas = new Array(15).fill(0);
-
-    timelineRows.forEach(r => {
-      const idx = parseInt(r.hora, 10) - 6;
-      if (idx >= 0 && idx < 15) {
-        if (r.tipo.toUpperCase().includes('ENTRADA')) {
-          entradas[idx] += r.total;
-        } else if (r.tipo.toUpperCase().includes('SALIDA')) {
-          salidas[idx] += r.total;
+      timeline.forEach(r => {
+        const idx = parseInt(r.hora, 10) - 6;
+        if (idx >= 0 && idx < 15) {
+          if (r.tipo.toUpperCase().includes('ENTRADA')) {
+            entradas[idx] += r.total;
+          } else if (r.tipo.toUpperCase().includes('SALIDA')) {
+            salidas[idx] += r.total;
+          }
         }
-      }
-    });
+      });
 
-    res.json({
-      success: true,
-      data: {
+      return {
         supervisores,
         timeline: { labels: horas, entradas, salidas }
-      }
+      };
     });
+
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.getPanel = async (req, res) => {
+  try {
+    const { fecha, supervisor, texto } = req.query;
+    const hoy = fechaCaracas();
+    const data = await RegistroModel.getPanel({
+      fechaInicio: fecha || hoy,
+      fechaFin: fecha || hoy,
+      supervisor: supervisor || 'TODOS',
+      texto: texto || '',
+    });
+    res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -198,7 +209,7 @@ exports.getAllRegistros = async (req, res) => {
       const vendedores = await cache.get(`vendedores_sup_${sup}`, 300000, () => VendedorModel.getBySupervisor(sup));
       codigos = vendedores.map(v => v.codigo);
     }
-    const registros = await cache.get(cacheKey, 5000, () => RegistroModel.getAll(codigos));
+    const registros = await cache.get(cacheKey, 60000, () => RegistroModel.getAll(codigos));
     res.setHeader('Cache-Control', 'no-store');
     res.json({ success: true, data: registros });
   } catch (err) {

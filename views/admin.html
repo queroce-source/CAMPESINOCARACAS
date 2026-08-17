@@ -619,6 +619,7 @@ function obtenerCodigoSupervisor(textoSupervisor) {
       return;
     }
     document.getElementById('tablaCuerpo').innerHTML = '<tr><td colspan="6" style="text-align:center;">Cargando datos...</td></tr>';
+    ultimaActualizacion = Date.now();
     try {
       const supParam = (usuarioActual && usuarioActual.rol !== 'ADMIN' && usuarioActual.supervisorAsignado && usuarioActual.supervisorAsignado !== 'TODOS')
         ? '?supervisor=' + encodeURIComponent(usuarioActual.supervisorAsignado) : '';
@@ -980,7 +981,7 @@ function obtenerCodigoSupervisor(textoSupervisor) {
     if (!usuarioActual || !navigator.onLine) return;
     if (document.getElementById('panelAdmin').style.display !== 'block') return;
     const ahora = Date.now();
-    if (ahora - ultimaActualizacion < 5000) return;
+    if (ahora - ultimaActualizacion < 30000) return;
     ultimaActualizacion = ahora;
     fetchAllData();
   }

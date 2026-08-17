@@ -12,6 +12,7 @@ router.get('/vendedores', vendedores, asistenciaController.getVendedores);
 router.get('/supervisores', asistenciaController.getSupervisores);
 
 router.get('/registros/dashboard', requireAdmin, admin, asistenciaController.getDashboard);
+router.get('/registros/panel', requireAdmin, admin, asistenciaController.getPanel);
 router.get('/registros/detalle', requireAdmin, admin, asistenciaController.getDetalle);
 router.get('/registros/graficos', requireAdmin, admin, asistenciaController.getGraficos);
 router.get('/registros/all', requireAdmin, admin, asistenciaController.getAllRegistros);

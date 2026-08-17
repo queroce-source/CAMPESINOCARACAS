@@ -202,25 +202,22 @@ function escaparHtml(s) {
       if (usuarioActual && usuarioActual.rol !== 'ADMIN' && usuarioActual.supervisorAsignado && usuarioActual.supervisorAsignado !== 'TODOS') {
         supParam = usuarioActual.supervisorAsignado;
       }
-      const [resDet, resDash] = await Promise.all([
-        fetch(`/api/registros/detalle?fecha=${hoy}&supervisor=${supParam}&texto=&estado=TODOS`),
-        fetch(`/api/registros/dashboard?fecha=${hoy}&supervisor=${supParam}`)
-      ]);
-      const detData = await resDet.json();
-      const dashData = await resDash.json();
-      if (!detData.success || !dashData.success) throw new Error('Error en servidor');
-      const kpi = dashData.data.kpi;
+      const resPanel = await fetch(`/api/registros/panel?fecha=${hoy}&supervisor=${supParam}&texto=`);
+      const panelData = await resPanel.json();
+      if (!panelData.success) throw new Error('Error en servidor');
+      const kpi = panelData.data.kpi;
+      const detalle = panelData.data.detalle;
       document.getElementById('kpiTotal').innerText = kpi.totalVendedores;
       document.getElementById('kpiEntradasReg').innerText = kpi.entradasReg;
       document.getElementById('kpiEntradasPend').innerText = kpi.entradasPend;
       document.getElementById('kpiSalidasReg').innerText = kpi.salidasReg;
       document.getElementById('kpiSalidasPend').innerText = kpi.salidasPend;
       tbody.innerHTML = '';
-      if (detData.data.length === 0) {
+      if (detalle.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay registros para hoy.</td></tr>';
         return;
       }
-      detData.data.forEach(r => {
+      detalle.forEach(r => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td><strong>${escaparHtml(r.codigo)}</strong></td>
