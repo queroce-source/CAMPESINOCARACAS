@@ -981,7 +981,7 @@ function obtenerCodigoSupervisor(textoSupervisor) {
     if (!usuarioActual || !navigator.onLine) return;
     if (document.getElementById('panelAdmin').style.display !== 'block') return;
     const ahora = Date.now();
-    if (ahora - ultimaActualizacion < 30000) return;
+    if (ahora - ultimaActualizacion < 1200000) return;
     ultimaActualizacion = ahora;
     fetchAllData();
   }
