@@ -197,7 +197,7 @@ exports.getPanel = async (req, res) => {
 
 exports.getAllRegistros = async (req, res) => {
   try {
-    const { supervisor } = req.query;
+    const { supervisor, fechaInicio, fechaFin } = req.query;
     const sesionSup = req.usuarioSesion && req.usuarioSesion.supervisorAsignado;
     const esSupervisorFiltrado = req.usuarioSesion && req.usuarioSesion.rol !== 'ADMIN' && sesionSup && sesionSup !== 'TODOS';
 
@@ -209,7 +209,11 @@ exports.getAllRegistros = async (req, res) => {
       const vendedores = await cache.get(`vendedores_sup_${sup}`, 300000, () => VendedorModel.getBySupervisor(sup));
       codigos = vendedores.map(v => v.codigo);
     }
-    const registros = await cache.get(cacheKey, 60000, () => RegistroModel.getAll(codigos));
+    const conRango = Boolean(fechaInicio && fechaFin);
+    const rangoSufijo = conRango ? `_${fechaInicio}_${fechaFin}` : '';
+    const registros = await cache.get(cacheKey + rangoSufijo, 60000, () =>
+      RegistroModel.getAll(codigos, conRango ? fechaInicio : null, conRango ? fechaFin : null)
+    );
     res.setHeader('Cache-Control', 'no-store');
     res.json({ success: true, data: registros });
   } catch (err) {

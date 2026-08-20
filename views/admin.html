@@ -231,6 +231,8 @@
   const filters = { texto: '', supervisor: 'TODOS', estado: 'TODOS', anio: 'TODOS', mes: 'TODOS', dia: 'TODOS', diaSemana: 'TODOS' };
   let allVendedores = [];
   let allRegistros = [];
+  let rangoCargado = null;
+  let enProcesoCarga = false;
 
   /* --- Utilidades --- */
   const SUPERVISORES_MAP = {
@@ -290,6 +292,23 @@ function obtenerCodigoSupervisor(textoSupervisor) {
     const ahora = new Date();
     const utcMs = ahora.getTime() + ahora.getTimezoneOffset() * 60000;
     return new Date(utcMs - (4 * 3600000)).toISOString().slice(0, 10);
+  }
+
+  function sumarDias(fechaStr, delta) {
+    const d = new Date(fechaStr + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() + delta);
+    return d.toISOString().slice(0, 10);
+  }
+
+  /* --- Rango por defecto: últimos 2 días (ayer + hoy), para la carga inicial --- */
+  function rangoPorDefecto() {
+    const fin = fechaHoyCaracas();
+    return { inicio: sumarDias(fin, -1), fin: fin };
+  }
+
+  function rangoCubierto(cargado, solicitado) {
+    if (!cargado || !cargado.inicio || !cargado.fin) return false;
+    return solicitado.inicio >= cargado.inicio && solicitado.fin <= cargado.fin;
   }
 
   /* --- Rango de fechas desde filtros --- */
@@ -606,8 +625,9 @@ function obtenerCodigoSupervisor(textoSupervisor) {
     }
   }
 
-  /* --- Fetch completo (vendedores + todos los registros, una sola vez) --- */
-  async function fetchAllData() {
+  /* --- Fetch (vendedores + registros limitados a un rango de fechas) --- */
+  async function fetchAllData(rango) {
+    if (enProcesoCarga) return;
     if (!navigator.onLine) {
       const cache = cargarCache();
       if (cache && cache.vendedores && cache.vendedores.length > 0) {
@@ -618,35 +638,58 @@ function obtenerCodigoSupervisor(textoSupervisor) {
       }
       return;
     }
+    enProcesoCarga = true;
     document.getElementById('tablaCuerpo').innerHTML = '<tr><td colspan="6" style="text-align:center;">Cargando datos...</td></tr>';
     ultimaActualizacion = Date.now();
+    const rangoUsado = rango || (rangoCargado && rangoCargado.inicio && rangoCargado.fin ? rangoCargado : rangoPorDefecto());
     try {
-      const supParam = (usuarioActual && usuarioActual.rol !== 'ADMIN' && usuarioActual.supervisorAsignado && usuarioActual.supervisorAsignado !== 'TODOS')
-        ? '?supervisor=' + encodeURIComponent(usuarioActual.supervisorAsignado) : '';
+      const condSup = (usuarioActual && usuarioActual.rol !== 'ADMIN' && usuarioActual.supervisorAsignado && usuarioActual.supervisorAsignado !== 'TODOS');
+      const vParams = condSup ? '?supervisor=' + encodeURIComponent(usuarioActual.supervisorAsignado) : '';
+      const regParams = [];
+      if (condSup) regParams.push('supervisor=' + encodeURIComponent(usuarioActual.supervisorAsignado));
+      if (rangoUsado && rangoUsado.inicio && rangoUsado.fin) {
+        regParams.push('fechaInicio=' + encodeURIComponent(rangoUsado.inicio));
+        regParams.push('fechaFin=' + encodeURIComponent(rangoUsado.fin));
+      }
+      const regQuery = regParams.length ? '?' + regParams.join('&') : '';
       const [resV, resR] = await Promise.all([
-        fetch('/api/vendedores' + supParam),
-        fetch('/api/registros/all' + supParam),
+        fetch('/api/vendedores' + vParams),
+        fetch('/api/registros/all' + regQuery),
       ]);
       const jsonV = await resV.json();
       const jsonR = await resR.json();
       console.log('[DEBUG] /api/vendedores status:', resV.status, 'success:', jsonV.success, 'items:', (jsonV.data || []).length);
-      console.log('[DEBUG] /api/registros/all status:', resR.status, 'success:', jsonR.success, 'items:', (jsonR.data || []).length);
+      console.log('[DEBUG] /api/registros/all status:', resR.status, 'success:', jsonR.success, 'items:', (jsonR.data || []).length, 'rango:', JSON.stringify(rangoUsado));
       if (!jsonV.success || !jsonR.success) {
         throw new Error('Error del servidor (status vendedores=' + resV.status + ', status registros=' + resR.status + ')');
       }
       allVendedores = jsonV.data;
       allRegistros = jsonR.data;
+      rangoCargado = rangoUsado;
       poblarSupervisores(allVendedores);
       const rango = obtenerRangoFecha();
       const muestra = allRegistros[0];
-      console.log('[DEBUG] Vendedores:', allVendedores.length, '| Registros totales:', allRegistros.length);
+      console.log('[DEBUG] Vendedores:', allVendedores.length, '| Registros cargados:', allRegistros.length);
       console.log('[DEBUG] Rango filtrado:', JSON.stringify(rango), '| Ejemplo fecha registro:', muestra ? muestra.fecha : '(sin registros)');
       guardarCache({ vendedores: allVendedores, registros: allRegistros });
       renderDesdeCache();
     } catch (e) {
       console.error('[ERROR] fetchAllData:', e);
       document.getElementById('tablaCuerpo').innerHTML = '<tr><td colspan="6" style="text-align:center;color:red;">Error al cargar datos del servidor: ' + escaparHtml(e.message) + '</td></tr>';
+    } finally {
+      enProcesoCarga = false;
+      asegurarRangoCargado();
     }
+  }
+
+  /* --- Re-consulta si los filtros piden un rango más antiguo que el cargado --- */
+  function asegurarRangoCargado() {
+    if (!usuarioActual || !navigator.onLine) return;
+    if (!rangoCargado && allRegistros.length === 0) return;
+    const rangoSolicitado = obtenerRangoFecha();
+    if (rangoCargado && rangoCubierto(rangoCargado, rangoSolicitado)) return;
+    if (enProcesoCarga) return;
+    fetchAllData(rangoSolicitado);
   }
 
   /* --- Sincronizar estado DOM → filters y renderizado 100% local --- */
@@ -663,6 +706,7 @@ function obtenerCodigoSupervisor(textoSupervisor) {
       document.getElementById('filterSupervisor').value = usuarioActual.supervisorAsignado;
     }
     renderDesdeCache();
+    asegurarRangoCargado();
   }
 
   function limpiarFiltros() {

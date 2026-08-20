@@ -318,12 +318,19 @@ class RegistroModel {
     return Object.values(hourMap);
   }
 
-  static async getAll(codigos) {
+  static async getAll(codigos, fechaInicio, fechaFin) {
+    const conRango = Boolean(fechaInicio && fechaFin);
     if (codigos && codigos.length > 0) {
       const resultado = [];
       for (let i = 0; i < codigos.length; i += CHUNK_IN) {
         const chunk = codigos.slice(i, i + CHUNK_IN);
-        const snap = await db.collection(REGISTROS).where('codigo', 'in', chunk).get();
+        let query = db.collection(REGISTROS).where('codigo', 'in', chunk);
+        if (conRango) {
+          query = query
+            .where('fecha', '>=', `${fechaInicio} 00:00:00`)
+            .where('fecha', '<=', `${fechaFin} 23:59:59`);
+        }
+        const snap = await query.get();
         snap.forEach(doc => {
           const d = doc.data();
           d.id = doc.id;
@@ -334,6 +341,19 @@ class RegistroModel {
     }
     if (codigos && codigos.length === 0) {
       return [];
+    }
+    if (conRango) {
+      const snap = await db.collection(REGISTROS)
+        .where('fecha', '>=', `${fechaInicio} 00:00:00`)
+        .where('fecha', '<=', `${fechaFin} 23:59:59`)
+        .get();
+      const registros = [];
+      snap.forEach(doc => {
+        const d = doc.data();
+        d.id = doc.id;
+        registros.push(d);
+      });
+      return registros;
     }
     const snap = await db.collection(REGISTROS).get();
     const registros = [];
