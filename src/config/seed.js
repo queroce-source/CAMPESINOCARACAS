@@ -89,7 +89,7 @@ async function seedDatabase() {
     { usuario: 'YOHANA MARQUEZ', rol: 'ADMIN', clave: 'ADMIN2026*' },
     { usuario: 'HEIBER CHACON', rol: 'ADMIN', clave: '30052150' },
     { usuario: 'ISMAR BENCOMO', rol: 'SUPERVISOR', clave: 'CEC2026*' },
-    { usuario: 'ALI GALINDEZ', rol: 'SUPERVISOR', clave: '0704' },
+    { usuario: 'ALI GALINDEZ', rol: 'ADMIN', clave: '0704' },
     { usuario: 'SHEYLA RIVAS', rol: 'SUPERVISOR', clave: 'CEC2026*' },
     { usuario: 'YUSMERY SALAZAR', rol: 'SUPERVISOR', clave: 'CEC2026*' },
     { usuario: 'AMALOA PINEDA', rol: 'SUPERVISOR', clave: 'CEC2026*' },
