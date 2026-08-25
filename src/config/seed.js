@@ -87,14 +87,15 @@ async function seedDatabase() {
   console.log('Insertando usuarios...');
   const usuarios = [
     { usuario: 'YOHANA MARQUEZ', rol: 'ADMIN', clave: 'ADMIN2026*' },
-    { usuario: 'ISMAR BENCOMO', rol: 'SUPERVISOR', clave: 'CS0-2026*' },
-    { usuario: 'ALI GALINDEZ', rol: 'SUPERVISOR', clave: 'CS1-2026*' },
-    { usuario: 'SHEYLA RIVAS', rol: 'SUPERVISOR', clave: 'CS2-2026*' },
-    { usuario: 'YUSMERY SALAZAR', rol: 'SUPERVISOR', clave: 'CS3-2026*' },
-    { usuario: 'AMALOA PINEDA', rol: 'SUPERVISOR', clave: 'CS4-2026*' },
-    { usuario: 'NORIS YANEZ', rol: 'SUPERVISOR', clave: 'CS5-2026*' },
-    { usuario: 'MARLYN MARCANO', rol: 'SUPERVISOR', clave: 'CS6-2026*' },
-    { usuario: 'YONATHAN GIL', rol: 'SUPERVISOR', clave: 'CS7-2026*' },
+    { usuario: 'HEIBER CHACON', rol: 'ADMIN', clave: '30052150' },
+    { usuario: 'ISMAR BENCOMO', rol: 'SUPERVISOR', clave: 'CEC2026*' },
+    { usuario: 'ALI GALINDEZ', rol: 'SUPERVISOR', clave: '0704' },
+    { usuario: 'SHEYLA RIVAS', rol: 'SUPERVISOR', clave: 'CEC2026*' },
+    { usuario: 'YUSMERY SALAZAR', rol: 'SUPERVISOR', clave: 'CEC2026*' },
+    { usuario: 'AMALOA PINEDA', rol: 'SUPERVISOR', clave: 'CEC2026*' },
+    { usuario: 'NORIS YANEZ', rol: 'SUPERVISOR', clave: 'CEC2026*' },
+    { usuario: 'MARLYN MARCANO', rol: 'SUPERVISOR', clave: 'CEC2026*' },
+    { usuario: 'YONATHAN GIL', rol: 'SUPERVISOR', clave: 'CEC2026*' },
   ];
   for (const u of usuarios) {
     await db.collection('usuarios').doc(u.usuario).set({
