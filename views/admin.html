@@ -231,36 +231,26 @@
   const filters = { texto: '', supervisor: 'TODOS', estado: 'TODOS', anio: 'TODOS', mes: 'TODOS', dia: 'TODOS', diaSemana: 'TODOS' };
   let allVendedores = [];
   let allRegistros = [];
+  let allSupervisores = [];
   let rangoCargado = null;
   let enProcesoCarga = false;
 
   /* --- Utilidades --- */
-  const SUPERVISORES_MAP = {
-  'CGV': 'YOHANA MARQUEZ',
-  'CS0': 'ISMAR BENCOMO',
-  'CS1': 'VACANTE',
-  'CS2': 'SHEYLA RIVAS',
-  'CS3': 'YUSMERY SALAZAR',
-  'CS4': 'AMALOA PINEDA',
-  'CS5': 'ALI GALINDEZ',
-  'CS6': 'VACANTE',
-  'CS7': 'YEISSY DELGADO',
-  'CS8': 'ALIET RODRIGUEZ',
-  'CS9': 'VACANTE',
-};
+  let supervisoresMap = {};
 
-function nombreSupervisor(codigo) {
-  if (!codigo || codigo === 'TODOS') return 'TODOS';
-  if (codigo === 'SIN SUPERVISOR') return 'SIN SUPERVISOR';
-  return SUPERVISORES_MAP[codigo] || codigo;
-}
+  function nombreSupervisor(codigo) {
+    if (!codigo || codigo === 'TODOS') return 'TODOS';
+    if (codigo === 'SIN SUPERVISOR') return 'SIN SUPERVISOR';
+    return supervisoresMap[codigo] || codigo;
+  }
 
-function obtenerCodigoSupervisor(textoSupervisor) {
-  if (!textoSupervisor) return 'S/C';
-  const trimmed = String(textoSupervisor).trim();
-  if (trimmed.toUpperCase() === 'SIN SUPERVISOR' || trimmed.toUpperCase() === 'S/C') return 'SIN SUP';
-  return SUPERVISORES_MAP[trimmed] || trimmed;
-}
+  function obtenerCodigoSupervisor(textoSupervisor) {
+    if (!textoSupervisor) return 'S/C';
+    const trimmed = String(textoSupervisor).trim();
+    if (trimmed.toUpperCase() === 'SIN SUPERVISOR' || trimmed.toUpperCase() === 'S/C') return 'SIN SUP';
+    const found = Object.entries(supervisoresMap).find(([_, v]) => v === trimmed);
+    return found ? found[0] : trimmed;
+  }
 
   function formatearHora(fechaStr) {
     if (!fechaStr) return '';
@@ -774,6 +764,26 @@ function obtenerCodigoSupervisor(textoSupervisor) {
     document.getElementById('filterDiaSemana').addEventListener('change', syncFilters);
   }
 
+  /* --- Cargar supervisores desde API --- */
+  async function cargarSupervisores() {
+    try {
+      const res = await fetch('/api/supervisores', { credentials: 'same-origin' });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        allSupervisores = data.data;
+        supervisoresMap = {};
+        allSupervisores.forEach(s => {
+          if (s.codigo && s.nombre) {
+            supervisoresMap[s.codigo] = s.nombre;
+          }
+        });
+        console.log('[DEBUG] Supervisores cargados:', supervisoresMap);
+      }
+    } catch (e) {
+      console.error('[ERROR] No se pudieron cargar supervisores:', e);
+    }
+  }
+
   /* --- Poblar selects --- */
   function poblarDiasDelMes() {
     const sel = document.getElementById('filterDia');
@@ -852,28 +862,30 @@ function obtenerCodigoSupervisor(textoSupervisor) {
     document.getElementById('vistaLogin').style.display = 'none';
     document.getElementById('panelAdmin').style.display = 'block';
     document.getElementById('userInfo').innerText = `Usuario: ${usuarioActual.usuario} | Rol: ${usuarioActual.rol} | Asignación: ${nombreSupervisor(usuarioActual.supervisorAsignado) || 'TODOS'}` + (avisoOffline ? ' | 📶 sin conexión (datos de caché)' : '');
-    poblarDiasDelMes();
-    poblarAnos();
-    const hoy = fechaHoyCaracas();
-    document.getElementById('filterAno').value = hoy.slice(0, 4);
-    document.getElementById('filterMes').value = String(parseInt(hoy.slice(5, 7), 10) - 1);
-    document.getElementById('filterDia').value = String(parseInt(hoy.slice(8, 10), 10));
-    document.getElementById('filterSupervisor').value = 'TODOS';
-    document.getElementById('filterEstado').value = 'TODOS';
-    document.getElementById('filterDiaSemana').value = 'TODOS';
-    bindFilterEvents();
-    syncFilters();
-    if (avisoOffline) {
-      const cache = cargarCache();
-      if (cache && cache.vendedores && cache.vendedores.length > 0) {
-        allVendedores = cache.vendedores;
-        allRegistros = cache.registros || [];
-        poblarSupervisores(allVendedores);
-        renderDesdeCache();
+    cargarSupervisores().then(() => {
+      poblarDiasDelMes();
+      poblarAnos();
+      const hoy = fechaHoyCaracas();
+      document.getElementById('filterAno').value = hoy.slice(0, 4);
+      document.getElementById('filterMes').value = String(parseInt(hoy.slice(5, 7), 10) - 1);
+      document.getElementById('filterDia').value = String(parseInt(hoy.slice(8, 10), 10));
+      document.getElementById('filterSupervisor').value = 'TODOS';
+      document.getElementById('filterEstado').value = 'TODOS';
+      document.getElementById('filterDiaSemana').value = 'TODOS';
+      bindFilterEvents();
+      syncFilters();
+      if (avisoOffline) {
+        const cache = cargarCache();
+        if (cache && cache.vendedores && cache.vendedores.length > 0) {
+          allVendedores = cache.vendedores;
+          allRegistros = cache.registros || [];
+          poblarSupervisores(allVendedores);
+          renderDesdeCache();
+        }
+        return;
       }
-      return;
-    }
-    fetchAllData();
+      fetchAllData();
+    });
   }
 
   function mostrarLogin() {
